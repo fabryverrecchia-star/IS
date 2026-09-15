@@ -5,10 +5,10 @@ import { Tile } from './Tile.js'
 import { clamp, smoothstep, damp } from './math.js'
 
 const CAMERA_DISTANCE = 1000
-const MAGNET_RADIUS_FACTOR = 1.05 // multiple of cell width
-const MAX_PULL_PX = 34
-const MAX_LIFT_PX = 46
-const MAX_SCALE_BOOST = 0.09
+const MAGNET_RADIUS_FACTOR = 0.7 // multiple of cell width, kept close to the hovered tile
+const MAX_PULL_PX = 12
+const MAX_LIFT_PX = 16
+const MAX_SCALE_BOOST = 0.028
 const MAX_TILT = 0.085 // radians, ~5deg
 const VIDEO_PLAY_MARGIN = 260 // px beyond viewport edges to start/stop playback
 
@@ -89,7 +89,7 @@ export class GalleryApp {
       alpha: false,
       powerPreference: 'high-performance',
     })
-    this.renderer.setClearColor(0x0b0d12, 1)
+    this.renderer.setClearColor(0xffffff, 1)
     this.renderer.outputColorSpace = THREE.SRGBColorSpace
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75))
     this.renderer.setSize(this.viewportWidth, this.viewportHeight)

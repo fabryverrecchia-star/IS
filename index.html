@@ -5,12 +5,12 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Galerie WebGL mixte images / vidéos avec effet magnet au survol." />
-    <title>IS — Galerie</title>
+    <title>Ismael Nebchi — Galerie</title>
   </head>
   <body>
     <div id="app">
       <header class="site-header">
-        <span class="site-title">IS</span>
+        <img class="site-mark" src="/logo-picto.svg" alt="Ismael Nebchi" />
         <span class="site-subtitle">Selected&nbsp;Works</span>
       </header>
 
@@ -20,9 +20,53 @@
       </div>
     </div>
 
+    <footer class="site-footer">
+      <div class="footer-inner">
+        <img class="footer-mark" src="/logo.svg" alt="Ismael Nebchi" />
+
+        <nav class="footer-columns">
+          <div class="footer-col">
+            <h3>Index</h3>
+            <ul>
+              <li><a href="#app">Selected Works</a></li>
+              <li><a href="#app">Studio</a></li>
+              <li><a href="#app">Journal</a></li>
+              <li><a href="#app">Contact</a></li>
+            </ul>
+          </div>
+          <div class="footer-col">
+            <h3>Contact</h3>
+            <ul>
+              <li><a href="mailto:hello@ismaelnebchi.com">hello@ismaelnebchi.com</a></li>
+              <li><a href="tel:+33100000000">+33&nbsp;1&nbsp;00&nbsp;00&nbsp;00&nbsp;00</a></li>
+            </ul>
+          </div>
+          <div class="footer-col">
+            <h3>Suivez</h3>
+            <ul>
+              <li><a href="#app">Instagram</a></li>
+              <li><a href="#app">Are.na</a></li>
+              <li><a href="#app">Vimeo</a></li>
+            </ul>
+          </div>
+        </nav>
+
+        <a href="#app" class="footer-back">Haut de page&nbsp;↑</a>
+      </div>
+
+      <div class="footer-bottom">
+        <span>© 2026 Ismael Nebchi. Tous droits réservés.</span>
+        <span>Édition N°01 — Galerie</span>
+      </div>
+    </footer>
+
     <div id="loader" class="loader">
-      <div class="loader-count" id="loader-count">0%</div>
-      <div class="loader-bar"><div class="loader-bar-fill" id="loader-fill"></div></div>
+      <svg class="loader-mark" viewBox="70 -3 64 63" fill="none" aria-hidden="true">
+        <path
+          pathLength="1"
+          d="M131.68,56.66l-5.21.03-21.48-37.45c-.43,2.43-.04,4.5-.04,6.81l-.02,30.65h-4.31v-12.08l-26.97-.02c-.13-1.31-.12-2.52,0-3.82l11.8-.03.02-36.86-11.81-.06c-.13-1.24-.09-2.39-.03-3.81l28.18-.02c.17,1.24.09,2.42.05,3.83l-11.88.05v36.86l10.64.04.04-28.57,5.18.02,21.49,37.47c.47-2.52.04-4.72.04-7.15l.03-30.31c1.47-.11,2.84-.11,4.32,0v44.43h-.04Z"
+        />
+      </svg>
     </div>
 
     <script type="module" src="/src/main.js"></script>

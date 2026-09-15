@@ -42,7 +42,6 @@ export class Tile {
       uHoverPoint: { value: this.hoverPoint },
       uHoverStrength: { value: 0 },
       uPlaneSize: { value: new THREE.Vector2(1, 1) },
-      uIsVideo: { value: item.type === 'video' ? 1 : 0 },
       uRevealProgress: { value: 0 },
     }
 
