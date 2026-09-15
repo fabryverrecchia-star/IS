@@ -126,6 +126,78 @@ body {
   opacity: 0;
 }
 
+/* --- click-to-zoom detail overlay --- */
+
+.detail-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 15;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+
+.detail-overlay.is-visible {
+  opacity: 1;
+}
+
+.detail-close {
+  position: absolute;
+  top: 24px;
+  right: clamp(20px, 6vw, 64px);
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.detail-close span {
+  position: absolute;
+  width: 18px;
+  height: 1px;
+  background: var(--fg);
+  transition: opacity 0.2s ease;
+}
+
+.detail-close span:first-child {
+  transform: rotate(45deg);
+}
+
+.detail-close span:last-child {
+  transform: rotate(-45deg);
+}
+
+.detail-close:hover span {
+  opacity: 0.6;
+}
+
+.detail-caption {
+  position: absolute;
+  left: clamp(20px, 6vw, 64px);
+  bottom: 28px;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.detail-caption-index {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--fg-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.detail-caption-title {
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  color: var(--fg);
+}
+
 .loader {
   position: fixed;
   inset: 0;

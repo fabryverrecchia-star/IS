@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import { galleryItems } from '../data/galleryData.js'
 import { computeGridLayout } from './layout.js'
 import { Tile } from './Tile.js'
+import { DetailView } from './DetailView.js'
 import { clamp, smoothstep, damp } from './math.js'
 
 const CAMERA_DISTANCE = 1000
@@ -48,6 +49,7 @@ export class GalleryApp {
     this._buildDom()
     this._initThree()
     this._buildLayout(true)
+    this.detailView = new DetailView(this)
     this._bindEvents()
 
     // Safety net so the loader never hangs indefinitely on a slow asset.
@@ -157,6 +159,7 @@ export class GalleryApp {
     this._onPointerLeave = () => {
       this.mouseActive = false
     }
+    this._onClick = () => this._handleClick()
     this._onVisibility = () => {
       if (document.hidden) this.stop()
       else this.start()
@@ -165,8 +168,19 @@ export class GalleryApp {
     window.addEventListener('resize', this._onResize)
     window.addEventListener('pointermove', this._onPointerMove, { passive: true })
     window.addEventListener('pointerdown', this._onPointerMove, { passive: true })
+    window.addEventListener('click', this._onClick)
     document.addEventListener('mouseleave', this._onPointerLeave)
     document.addEventListener('visibilitychange', this._onVisibility)
+  }
+
+  _handleClick() {
+    const dv = this.detailView
+    if (dv.state === 'idle') {
+      const tile = dv.pick(this.mouseNDC)
+      if (tile) dv.open(tile)
+    } else if (dv.state === 'detail') {
+      dv.close()
+    }
   }
 
   _handleResize() {
@@ -222,8 +236,13 @@ export class GalleryApp {
     const targetScale = 1 - speedFactor
     this.contentGroup.scale.setScalar(damp(this.contentGroup.scale.x, targetScale, 6, dt))
 
+    // --- detail (click-to-zoom) transition ---
+    this.detailView.update(dt)
+    const detailActive = this.detailView.isActive
+    const activeTile = this.detailView.activeTile
+
     // --- mouse -> world -> content-local ---
-    if (this.mouseActive) {
+    if (this.mouseActive && !detailActive) {
       this.raycaster.setFromCamera(this.mouseNDC, this.camera)
       const hit = this.raycaster.ray.intersectPlane(this.groundPlane, this.mouseWorld)
       if (hit) {
@@ -232,7 +251,7 @@ export class GalleryApp {
       }
     }
 
-    // --- magnet field across tiles ---
+    // --- magnet field across tiles (disabled while a detail view is open) ---
     const influenceRadius = this.layout.cellWidth * MAGNET_RADIUS_FACTOR
 
     for (const tile of this.tiles) {
@@ -241,7 +260,7 @@ export class GalleryApp {
       let pullY = 0
       this._tmpHoverUv.set(0, 0)
 
-      if (this.mouseActive) {
+      if (this.mouseActive && !detailActive) {
         this._tmpDelta.set(this.mouseLocal.x - tile.restX, this.mouseLocal.y - tile.restY)
         const dist = this._tmpDelta.length()
         strength = smoothstep(influenceRadius, 0, dist)
@@ -266,15 +285,22 @@ export class GalleryApp {
         lift: strength * MAX_LIFT_PX,
         scale: 1 + strength * MAX_SCALE_BOOST,
       })
+      tile.setDim(detailActive && tile !== activeTile ? 1 : 0)
 
       tile.update(dt, elapsed)
 
-      // play/pause video based on whether the tile is near the viewport
+      // play/pause video based on whether the tile is near the viewport;
+      // the tile open in detail view always plays, others pause while it's open
       if (tile.video) {
-        const worldY = tile.restY + this.scrollSmoothed
-        const withinView =
-          worldY > -this.viewportHeight / 2 - VIDEO_PLAY_MARGIN &&
-          worldY < this.viewportHeight / 2 + VIDEO_PLAY_MARGIN
+        let withinView
+        if (detailActive) {
+          withinView = tile === activeTile
+        } else {
+          const worldY = tile.restY + this.scrollSmoothed
+          withinView =
+            worldY > -this.viewportHeight / 2 - VIDEO_PLAY_MARGIN &&
+            worldY < this.viewportHeight / 2 + VIDEO_PLAY_MARGIN
+        }
         tile.setVideoPlaying(withinView)
       }
     }
@@ -286,8 +312,10 @@ export class GalleryApp {
     window.removeEventListener('resize', this._onResize)
     window.removeEventListener('pointermove', this._onPointerMove)
     window.removeEventListener('pointerdown', this._onPointerMove)
+    window.removeEventListener('click', this._onClick)
     document.removeEventListener('mouseleave', this._onPointerLeave)
     document.removeEventListener('visibilitychange', this._onVisibility)
+    this.detailView.dispose()
     this.tiles.forEach((t) => t.dispose())
     this.renderer.dispose()
   }

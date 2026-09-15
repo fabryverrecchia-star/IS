@@ -35,6 +35,7 @@ export const fragmentShader = /* glsl */ `
   uniform float uImageAspect;
   uniform float uHoverStrength;
   uniform float uRevealProgress; // 0..1 load-in reveal
+  uniform float uDim;            // 0..1, dims tiles not in focus (detail view open)
 
   varying vec2 vUv;
   varying float vHoverStrength;
@@ -63,6 +64,9 @@ export const fragmentShader = /* glsl */ `
     float edge = smoothstep(uRevealProgress - 0.08, uRevealProgress, vUv.y);
     float alpha = uRevealProgress >= 0.999 ? 1.0 : reveal;
     tex.rgb *= mix(1.0, 0.0, edge * (1.0 - reveal));
+
+    // fade everything but the tile open in detail view back into the white page
+    tex.rgb = mix(tex.rgb, vec3(0.97), uDim * 0.9);
 
     gl_FragColor = vec4(tex.rgb, alpha);
   }

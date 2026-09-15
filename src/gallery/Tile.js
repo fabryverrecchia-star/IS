@@ -27,6 +27,8 @@ export class Tile {
     this.liftTarget = 0
     this.scaleCurrent = 1
     this.scaleTarget = 1
+    this.dimCurrent = 0
+    this.dimTarget = 0
 
     this.restX = 0
     this.restY = 0
@@ -43,6 +45,7 @@ export class Tile {
       uHoverStrength: { value: 0 },
       uPlaneSize: { value: new THREE.Vector2(1, 1) },
       uRevealProgress: { value: 0 },
+      uDim: { value: 0 },
     }
 
     this.material = new THREE.ShaderMaterial({
@@ -137,6 +140,10 @@ export class Tile {
     this.scaleTarget = scale
   }
 
+  setDim(target) {
+    this.dimTarget = target
+  }
+
   setVideoPlaying(playing) {
     if (!this.video) return
     if (playing) {
@@ -156,6 +163,7 @@ export class Tile {
     this.pullOffset.y = damp(this.pullOffset.y, this.pullTarget.y, 8, dt)
     this.liftZ = damp(this.liftZ, this.liftTarget, 8, dt)
     this.scaleCurrent = damp(this.scaleCurrent, this.scaleTarget, 8, dt)
+    this.dimCurrent = damp(this.dimCurrent, this.dimTarget, 9, dt)
 
     this.group.position.x = this.restX + this.pullOffset.x
     this.group.position.y = this.restY + this.pullOffset.y
@@ -163,6 +171,7 @@ export class Tile {
     this.group.scale.setScalar(this.scaleCurrent)
 
     this.uniforms.uHoverStrength.value = this.hoverStrength
+    this.uniforms.uDim.value = this.dimCurrent
 
     if (this.ready && this.uniforms.uRevealProgress.value < 1) {
       if (this.revealStart === null) this.revealStart = elapsed + this.revealDelay
