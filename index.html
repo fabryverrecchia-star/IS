@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Galerie WebGL mixte images / vidéos avec effet magnet au survol." />
+    <title>IS — Galerie</title>
+  </head>
+  <body>
+    <div id="app">
+      <header class="site-header">
+        <span class="site-title">IS</span>
+        <span class="site-subtitle">Selected&nbsp;Works</span>
+      </header>
+
+      <div class="scroll-hint" id="scroll-hint" aria-hidden="true">
+        <span></span>
+        Scroll
+      </div>
+    </div>
+
+    <div id="loader" class="loader">
+      <div class="loader-count" id="loader-count">0%</div>
+      <div class="loader-bar"><div class="loader-bar-fill" id="loader-fill"></div></div>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
