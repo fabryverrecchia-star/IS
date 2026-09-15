@@ -7,11 +7,9 @@ export const vertexShader = /* glsl */ `
   uniform vec2 uPlaneSize;      // plane width/height in world units
 
   varying vec2 vUv;
-  varying float vHoverStrength;
 
   void main() {
     vUv = uv;
-    vHoverStrength = uHoverStrength;
 
     vec2 local = uv - 0.5;
     vec2 toCursor = uHoverPoint - local;
@@ -33,12 +31,10 @@ export const fragmentShader = /* glsl */ `
   uniform sampler2D uMap;
   uniform float uPlaneAspect;
   uniform float uImageAspect;
-  uniform float uHoverStrength;
   uniform float uRevealProgress; // 0..1 load-in reveal
   uniform float uDim;            // 0..1, dims tiles not in focus (detail view open)
 
   varying vec2 vUv;
-  varying float vHoverStrength;
 
   void main() {
     // object-fit: cover
@@ -50,14 +46,6 @@ export const fragmentShader = /* glsl */ `
     );
 
     vec4 tex = texture2D(uMap, uv);
-
-    // gentle brighten on hover
-    tex.rgb = mix(tex.rgb, tex.rgb * 1.03, vHoverStrength);
-
-    // soft vignette so tiles read as cards, not flat rectangles
-    vec2 c = vUv - 0.5;
-    float vig = smoothstep(0.72, 0.35, length(c));
-    tex.rgb *= mix(0.86, 1.0, vig + vHoverStrength * 0.15);
 
     // load-in reveal: wipe + fade
     float reveal = step(vUv.y, uRevealProgress + 0.001);

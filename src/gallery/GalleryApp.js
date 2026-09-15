@@ -3,6 +3,7 @@ import { galleryItems } from '../data/galleryData.js'
 import { computeGridLayout } from './layout.js'
 import { Tile } from './Tile.js'
 import { DetailView } from './DetailView.js'
+import { ProjectPage } from './ProjectPage.js'
 import { clamp, smoothstep, damp } from './math.js'
 
 const CAMERA_DISTANCE = 1000
@@ -50,6 +51,10 @@ export class GalleryApp {
     this._initThree()
     this._buildLayout(true)
     this.detailView = new DetailView(this)
+    this.detailView.onOpenComplete = (tile, rect) => this._handleProjectOpen(tile, rect)
+    this.projectPage = new ProjectPage(this, {
+      onClose: (tile) => this._handleProjectClose(tile),
+    })
     this._bindEvents()
 
     // Safety net so the loader never hangs indefinitely on a slow asset.
@@ -174,13 +179,26 @@ export class GalleryApp {
   }
 
   _handleClick() {
-    const dv = this.detailView
-    if (dv.state === 'idle') {
-      const tile = dv.pick(this.mouseNDC)
-      if (tile) dv.open(tile)
-    } else if (dv.state === 'detail') {
-      dv.close()
-    }
+    if (this.detailView.state !== 'idle') return
+    const tile = this.detailView.pick(this.mouseNDC)
+    if (tile) this.detailView.open(tile)
+  }
+
+  // Called once the WebGL entrance animation lands: hand off to the real
+  // scrollable project page and pause the gallery's own render loop since
+  // it's fully hidden behind an opaque page until the user navigates back.
+  _handleProjectOpen(tile) {
+    this.projectPage.open(tile)
+    this.stop()
+    // stop() pauses every tile's video; the one now playing in the project
+    // page itself should keep going.
+    if (tile.video) tile.setVideoPlaying(true)
+  }
+
+  _handleProjectClose() {
+    this.start()
+    this.detailView.showAtCurrent()
+    this.detailView.close()
   }
 
   _handleResize() {

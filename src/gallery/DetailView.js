@@ -2,24 +2,28 @@ import * as THREE from 'three'
 import { vertexShader, fragmentShader } from './shaders.js'
 import { lerp, easeOutExpo, easeInOutCubic, clamp } from './math.js'
 
-const HERO_Z = 60
 const MAX_TURN_ANGLE = 0.45 // radians (~26deg), a flourish during the move only — always 0 at rest
 const OPEN_DURATION = 0.7
 const CLOSE_DURATION = 0.55
 
-// Manages the single "hero" mesh used for the click-to-zoom detail
-// transition: a plane that tweens from a clicked tile's exact on-screen
-// transform to a centered, uncropped view, and back again. It lives
-// directly in the scene (not the scrolling content group) so it stays
-// put regardless of scroll, and it's built once and reused for every
-// open/close rather than allocated per click.
+// Drives the click-to-zoom WebGL transition only: a hero plane that tweens
+// from a clicked tile's exact on-screen transform to a full-bleed, top-
+// aligned banner (and back again), with a brief Y-axis rotation flourish
+// that reads as a page turning. It lives directly in the scene (not the
+// scrolling content group) so it stays put regardless of scroll, and it's
+// built once and reused for every open/close rather than allocated per
+// click. The actual project content (scrolling body, captions, extra
+// images) is owned by ProjectPage — this class just hands off to it via
+// onOpenComplete once the entrance animation lands, and picks back up for
+// the reverse animation when asked to close().
 export class DetailView {
   constructor(app) {
     this.app = app
-    this.state = 'idle' // idle | opening | detail | closing
+    this.state = 'idle' // idle | opening | project | closing
     this.activeTile = null
     this.progress = 0
     this.rotSign = 1
+    this.onOpenComplete = null
 
     this.start = { x: 0, y: 0, z: 0, width: 1, height: 1 }
     this.end = { x: 0, y: 0, z: 0, width: 1, height: 1 }
@@ -29,7 +33,7 @@ export class DetailView {
     this._tmpLocal = new THREE.Vector3()
 
     this._buildMesh()
-    this._bindDom()
+    this._bindKeys()
   }
 
   get isActive() {
@@ -53,6 +57,8 @@ export class DetailView {
       fragmentShader,
       uniforms,
       transparent: true,
+      depthTest: false,
+      depthWrite: false,
     })
     this.mesh = new THREE.Mesh(geometry, this.material)
     this.mesh.visible = false
@@ -60,17 +66,7 @@ export class DetailView {
     this.app.scene.add(this.mesh)
   }
 
-  _bindDom() {
-    this.overlay = document.getElementById('detail-overlay')
-    this.closeButton = document.getElementById('detail-close')
-    this.captionIndex = document.getElementById('detail-caption-index')
-    this.captionTitle = document.getElementById('detail-caption-title')
-
-    this.closeButton.addEventListener('click', (e) => {
-      e.stopPropagation()
-      this.close()
-    })
-
+  _bindKeys() {
     this._onKeydown = (e) => {
       if (e.key === 'Escape') this.close()
     }
@@ -121,23 +117,17 @@ export class DetailView {
     this.start.width = tile.cell.width
     this.start.height = tile.cell.height
 
+    // End target: a full-bleed banner flush with the top of the viewport —
+    // z stays 0 so world units equal CSS pixels exactly, which ProjectPage
+    // relies on to hand off to a pixel-identical DOM element with no pop.
     const { viewportWidth, viewportHeight } = this.app
-    const maxW = Math.min(viewportWidth * 0.82, 1100)
-    const maxH = viewportHeight * 0.78
     const aspect = tile.item.aspect
-    let heroW
-    let heroH
-    if (aspect >= maxW / maxH) {
-      heroW = maxW
-      heroH = maxW / aspect
-    } else {
-      heroH = maxH
-      heroW = maxH * aspect
-    }
+    const heroW = viewportWidth
+    const heroH = heroW / aspect
 
     this.end.x = 0
-    this.end.y = 0
-    this.end.z = HERO_Z
+    this.end.y = viewportHeight / 2 - heroH / 2
+    this.end.z = 0
     this.end.width = heroW
     this.end.height = heroH
 
@@ -152,12 +142,18 @@ export class DetailView {
     this.mesh.visible = true
     this._applyTransform(this.start, 0)
 
-    this._setChromeVisible(true)
     this._lockScroll()
   }
 
+  // Re-shows the hero mesh at the transform ProjectPage left it at, so
+  // control can hand back from DOM to WebGL with no visible pop.
+  showAtCurrent() {
+    this.mesh.visible = true
+    this._applyTransform(this.current, 0)
+  }
+
   close() {
-    if (this.state !== 'detail' && this.state !== 'opening') return
+    if (this.state !== 'project' && this.state !== 'opening') return
 
     this.start = { ...this.current }
     const tile = this.activeTile
@@ -171,17 +167,6 @@ export class DetailView {
 
     this.state = 'closing'
     this.progress = 0
-    this._setChromeVisible(false)
-  }
-
-  _setChromeVisible(visible) {
-    this.overlay.classList.toggle('is-visible', visible)
-    if (visible) {
-      const items = this.app.items
-      const index = items.indexOf(this.activeTile.item) + 1
-      this.captionIndex.textContent = `${String(index).padStart(2, '0')} / ${String(items.length).padStart(2, '0')}`
-      this.captionTitle.textContent = this.activeTile.item.title
-    }
   }
 
   _lockScroll() {
@@ -211,7 +196,7 @@ export class DetailView {
   }
 
   update(dt) {
-    if (this.state === 'idle' || this.state === 'detail') return
+    if (this.state === 'idle' || this.state === 'project') return
 
     const duration = this.state === 'opening' ? OPEN_DURATION : CLOSE_DURATION
     this.progress = clamp(this.progress + dt / duration, 0, 1)
@@ -232,7 +217,9 @@ export class DetailView {
 
     if (this.progress >= 1) {
       if (this.state === 'opening') {
-        this.state = 'detail'
+        this.state = 'project'
+        this.mesh.visible = false
+        this.onOpenComplete && this.onOpenComplete(this.activeTile, { ...this.current })
       } else {
         this.mesh.visible = false
         this.activeTile.mesh.visible = true
