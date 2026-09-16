@@ -117,6 +117,19 @@ const rawItems = [
     year: '',
     screenshots: [],
   },
+  {
+    id: 'project07',
+    type: 'image',
+    src: 'media/images/project07.jpg',
+    aspect: 1440 / 1920,
+    title: '3 Paradis — Jean-Charles de Castelbajac',
+    client: 'Weston',
+    year: '',
+    images: [
+      { src: 'media/images/project08.jpg', aspect: 1080 / 1440 },
+      { src: 'media/images/project09.jpg', aspect: 1440 / 1920 },
+    ],
+  },
 ]
 
 // DEMO ONLY: for any *image* project without its own real `images` yet,
