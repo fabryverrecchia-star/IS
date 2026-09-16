@@ -71,12 +71,28 @@ body {
   display: block;
   height: 22px;
   width: auto;
+  transition: opacity 0.3s ease;
+}
+
+/* Overview mode is meant to read as just the grid — logo, subtitle,
+   scroll hint and footer all step out of the way while it's active
+   (see GalleryApp.toggleOverview, which toggles this on <body>). */
+body.overview-active .site-mark,
+body.overview-active .site-subtitle {
+  opacity: 0;
+  pointer-events: none;
+}
+
+body.overview-active .site-footer,
+body.overview-active .scroll-hint {
+  display: none;
 }
 
 .site-subtitle {
   font-size: 12px;
   letter-spacing: 0.06em;
   color: var(--fg-dim);
+  transition: opacity 0.3s ease;
 }
 
 /* 2x2-square "overview" toggle — zooms the mosaic out to a dense,
@@ -97,14 +113,9 @@ body {
 }
 
 .overview-toggle span {
-  background: var(--fg);
-  opacity: 0.75;
-  border-radius: 1px;
-  transition: opacity 0.2s ease, transform 0.3s cubic-bezier(0.65, 0, 0.35, 1);
-}
-
-.overview-toggle:hover span {
-  opacity: 1;
+  background: #000;
+  border-radius: 0;
+  transition: transform 0.3s cubic-bezier(0.65, 0, 0.35, 1);
 }
 
 .overview-toggle[aria-pressed='true'] span:nth-child(1) {

@@ -207,6 +207,7 @@ export class GalleryApp {
     if (this.detailView.isActive) return
     this.overviewActive = !this.overviewActive
     this.overviewToggle.setAttribute('aria-pressed', String(this.overviewActive))
+    document.body.classList.toggle('overview-active', this.overviewActive)
 
     const layoutFn = this.overviewActive ? computeOverviewLayout : computeGridLayout
     const newLayout = layoutFn(this.items.length, this.viewportWidth, this.viewportHeight)
