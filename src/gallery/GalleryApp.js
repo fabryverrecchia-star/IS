@@ -1,10 +1,10 @@
 import * as THREE from 'three'
 import { galleryItems } from '../data/galleryData.js'
-import { computeGridLayout } from './layout.js'
+import { computeGridLayout, computeOverviewLayout } from './layout.js'
 import { Tile } from './Tile.js'
 import { DetailView } from './DetailView.js'
 import { ProjectPage } from './ProjectPage.js'
-import { clamp, smoothstep, damp } from './math.js'
+import { clamp, smoothstep, damp, lerp, easeInOutCubic } from './math.js'
 
 const CAMERA_DISTANCE = 1000
 const MAGNET_RADIUS_FACTOR = 0.7 // multiple of cell width, kept close to the hovered tile
@@ -24,6 +24,10 @@ export class GalleryApp {
     this.tiles = []
     this.loadedCount = 0
     this.readyFired = false
+
+    this.overviewActive = false
+    this.layoutTransition = null
+    this.overviewToggle = document.getElementById('overview-toggle')
 
     this.viewportWidth = window.innerWidth
     this.viewportHeight = window.innerHeight
@@ -116,7 +120,8 @@ export class GalleryApp {
   }
 
   _buildLayout(initial) {
-    this.layout = computeGridLayout(this.items.length, this.viewportWidth, this.viewportHeight)
+    const layoutFn = this.overviewActive ? computeOverviewLayout : computeGridLayout
+    this.layout = layoutFn(this.items.length, this.viewportWidth, this.viewportHeight)
     this.spacer.style.height = `${Math.round(this.layout.totalHeight)}px`
 
     if (initial) {
@@ -165,6 +170,10 @@ export class GalleryApp {
       this.mouseActive = false
     }
     this._onClick = () => this._handleClick()
+    this._onOverviewToggle = (e) => {
+      e.stopPropagation()
+      this.toggleOverview()
+    }
     this._onVisibility = () => {
       if (document.hidden) this.stop()
       else this.start()
@@ -187,6 +196,32 @@ export class GalleryApp {
     document.addEventListener('mouseleave', this._onPointerLeave)
     document.addEventListener('visibilitychange', this._onVisibility)
     document.addEventListener('keydown', this._onKeydown)
+    this.overviewToggle.addEventListener('click', this._onOverviewToggle)
+  }
+
+  // Zooms the mosaic between the curated max-4-column scroll layout and a
+  // denser overview where every item fits on screen at once (see
+  // computeOverviewLayout) — tiles tween smoothly between the two rather
+  // than snapping, driven per-frame in _update().
+  toggleOverview() {
+    if (this.detailView.isActive) return
+    this.overviewActive = !this.overviewActive
+    this.overviewToggle.setAttribute('aria-pressed', String(this.overviewActive))
+
+    const layoutFn = this.overviewActive ? computeOverviewLayout : computeGridLayout
+    const newLayout = layoutFn(this.items.length, this.viewportWidth, this.viewportHeight)
+    const fromCells = this.tiles.map((tile) => ({ ...tile.cell }))
+
+    this.layout = newLayout
+    this.spacer.style.height = `${Math.round(newLayout.totalHeight)}px`
+    window.scrollTo(0, 0)
+
+    this.layoutTransition = {
+      fromCells,
+      toCells: newLayout.positions,
+      elapsed: 0,
+      duration: 0.85,
+    }
   }
 
   _handleClick() {
@@ -225,6 +260,9 @@ export class GalleryApp {
     this.viewportHeight = window.innerHeight
     this._updateCameraFov()
     this.renderer.setSize(this.viewportWidth, this.viewportHeight)
+    // Any in-flight layout tween was computed against the old viewport —
+    // drop it and let _buildLayout snap tiles straight to the new one.
+    this.layoutTransition = null
     this._buildLayout(false)
   }
 
@@ -269,6 +307,28 @@ export class GalleryApp {
     this.contentGroup.position.y = this.scrollSmoothed
     this.contentGroup.rotation.x = this.tiltCurrent
 
+    // --- overview toggle: tween tiles between the two layouts ---
+    if (this.layoutTransition) {
+      const t = this.layoutTransition
+      t.elapsed += dt
+      const eased = easeInOutCubic(clamp(t.elapsed / t.duration, 0, 1))
+      this.tiles.forEach((tile, i) => {
+        const a = t.fromCells[i]
+        const b = t.toCells[i]
+        tile.applyCell(
+          {
+            x: lerp(a.x, b.x, eased),
+            y: lerp(a.y, b.y, eased),
+            width: lerp(a.width, b.width, eased),
+            height: lerp(a.height, b.height, eased),
+          },
+          this.viewportWidth,
+          this.viewportHeight
+        )
+      })
+      if (t.elapsed >= t.duration) this.layoutTransition = null
+    }
+
     const speedFactor = clamp(Math.abs(velocity) * 0.00006, 0, 0.035)
     const targetScale = 1 - speedFactor
     this.contentGroup.scale.setScalar(damp(this.contentGroup.scale.x, targetScale, 6, dt))
@@ -277,9 +337,13 @@ export class GalleryApp {
     this.detailView.update(dt)
     const detailActive = this.detailView.isActive
     const activeTile = this.detailView.activeTile
+    // Magnet math below reads tile.restX/restY/cell, which are being
+    // rewritten every frame by the layout tween above — skip it while
+    // that's in flight rather than chase a moving target.
+    const magnetSuppressed = detailActive || !!this.layoutTransition
 
     // --- mouse -> world -> content-local ---
-    if (this.mouseActive && !detailActive) {
+    if (this.mouseActive && !magnetSuppressed) {
       this.raycaster.setFromCamera(this.mouseNDC, this.camera)
       const hit = this.raycaster.ray.intersectPlane(this.groundPlane, this.mouseWorld)
       if (hit) {
@@ -297,7 +361,7 @@ export class GalleryApp {
       let pullY = 0
       this._tmpHoverUv.set(0, 0)
 
-      if (this.mouseActive && !detailActive) {
+      if (this.mouseActive && !magnetSuppressed) {
         this._tmpDelta.set(this.mouseLocal.x - tile.restX, this.mouseLocal.y - tile.restY)
         const dist = this._tmpDelta.length()
         strength = smoothstep(influenceRadius, 0, dist)
@@ -353,6 +417,7 @@ export class GalleryApp {
     document.removeEventListener('mouseleave', this._onPointerLeave)
     document.removeEventListener('visibilitychange', this._onVisibility)
     document.removeEventListener('keydown', this._onKeydown)
+    this.overviewToggle.removeEventListener('click', this._onOverviewToggle)
     this.detailView.dispose()
     this.tiles.forEach((t) => t.dispose())
     this.renderer.dispose()

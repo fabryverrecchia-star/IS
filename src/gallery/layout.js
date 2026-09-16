@@ -51,3 +51,51 @@ export function computeGridLayout(itemCount, viewportWidth, viewportHeight) {
     positions,
   }
 }
+
+// A denser alternate layout for the overview toggle: grows past the
+// 4-column cap, adding columns until every item fits within one screen
+// (no scroll needed), with tighter margins to make the most of the space.
+export function computeOverviewLayout(itemCount, viewportWidth, viewportHeight) {
+  const sideMargin = viewportWidth >= 820 ? viewportWidth * 0.035 : 16
+  const gutter = viewportWidth >= 820 ? 14 : 8
+  const topMargin = Math.max(viewportHeight * 0.09, 64)
+  const bottomMargin = Math.max(viewportHeight * 0.05, 32)
+  const availableWidth = viewportWidth - sideMargin * 2
+  const availableHeight = viewportHeight - topMargin - bottomMargin
+
+  const maxColumns = Math.min(itemCount, 8)
+  let columns = Math.min(getColumnCount(viewportWidth), itemCount) || 1
+  let rows = Math.ceil(itemCount / columns)
+  let cellWidth = (availableWidth - gutter * (columns - 1)) / columns
+  let cellHeight = cellWidth * CELL_RATIO
+  let gridHeight = rows * cellHeight + (rows - 1) * gutter
+
+  while (gridHeight > availableHeight && columns < maxColumns) {
+    columns += 1
+    rows = Math.ceil(itemCount / columns)
+    cellWidth = (availableWidth - gutter * (columns - 1)) / columns
+    cellHeight = cellWidth * CELL_RATIO
+    gridHeight = rows * cellHeight + (rows - 1) * gutter
+  }
+
+  const positions = []
+  for (let i = 0; i < itemCount; i++) {
+    const col = i % columns
+    const row = Math.floor(i / columns)
+    const x = sideMargin + col * (cellWidth + gutter) + cellWidth / 2
+    const y = topMargin + row * (cellHeight + gutter) + cellHeight / 2
+    positions.push({ x, y, width: cellWidth, height: cellHeight, row, col })
+  }
+
+  return {
+    columns,
+    rows,
+    cellWidth,
+    cellHeight,
+    gutter,
+    sideMargin,
+    topMargin,
+    totalHeight: topMargin + gridHeight + bottomMargin,
+    positions,
+  }
+}

@@ -79,6 +79,47 @@ body {
   color: var(--fg-dim);
 }
 
+/* 2x2-square "overview" toggle — zooms the mosaic out to a dense,
+   full-screen grid (see GalleryApp.toggleOverview). */
+.overview-toggle {
+  margin-left: auto;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: 3px;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.overview-toggle span {
+  background: var(--fg);
+  opacity: 0.75;
+  border-radius: 1px;
+  transition: opacity 0.2s ease, transform 0.3s cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+.overview-toggle:hover span {
+  opacity: 1;
+}
+
+.overview-toggle[aria-pressed='true'] span:nth-child(1) {
+  transform: translate(2px, 2px) scale(0.8);
+}
+.overview-toggle[aria-pressed='true'] span:nth-child(2) {
+  transform: translate(-2px, 2px) scale(0.8);
+}
+.overview-toggle[aria-pressed='true'] span:nth-child(3) {
+  transform: translate(2px, -2px) scale(0.8);
+}
+.overview-toggle[aria-pressed='true'] span:nth-child(4) {
+  transform: translate(-2px, -2px) scale(0.8);
+}
+
 .scroll-hint {
   position: fixed;
   left: clamp(20px, 6vw, 64px);
