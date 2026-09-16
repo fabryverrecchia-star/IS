@@ -68,14 +68,24 @@ const rawItems = [
     title: 'Utility',
     client: '',
     year: '',
+    images: [
+      { src: 'media/images/img62.jpg', aspect: 1708 / 2560 },
+      { src: 'media/images/img63.jpg', aspect: 1708 / 2560 },
+      { src: 'media/images/img64.jpg', aspect: 2048 / 2560 },
+    ],
   },
 ]
 
-// DEMO ONLY: each project's cover repeated 4x as its extra `images`, so the
-// project page's parallax scroll reveal is visible before real per-project
-// galleries exist. Replace each project's `images` array with its own real
-// extra photos, then delete this block.
-export const galleryItems = rawItems.map((item) => ({
-  ...item,
-  images: [item, item, item, item].map(({ src, aspect }) => ({ src, aspect })),
-}))
+// DEMO ONLY: for any project without its own real `images` yet, fall back
+// to its cover repeated 4x so the project page's parallax scroll reveal is
+// visible. Once a project lists its own real extra photos (like 'img61'
+// above), that list is used as-is — replace the rest the same way and
+// delete this fallback.
+export const galleryItems = rawItems.map((item) =>
+  item.images
+    ? item
+    : {
+        ...item,
+        images: [item, item, item, item].map(({ src, aspect }) => ({ src, aspect })),
+      }
+)
