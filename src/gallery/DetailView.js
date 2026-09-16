@@ -67,9 +67,6 @@ export class DetailView {
   }
 
   _bindKeys() {
-    this._onKeydown = (e) => {
-      if (e.key === 'Escape') this.close()
-    }
     this._onWheelLock = (e) => e.preventDefault()
     this._onTouchLock = (e) => e.preventDefault()
     const lockedKeys = new Set([' ', 'ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End'])
@@ -167,20 +164,23 @@ export class DetailView {
 
     this.state = 'closing'
     this.progress = 0
+    this._lockScroll()
   }
 
+  // Blocks background scrolling only for the duration of the WebGL
+  // open/close transitions, where the gallery's own scroll would move the
+  // grid tiles the animation math is based on. Not used while the project
+  // page is showing — that page has its own scroll.
   _lockScroll() {
     window.addEventListener('wheel', this._onWheelLock, { passive: false })
     window.addEventListener('touchmove', this._onTouchLock, { passive: false })
     window.addEventListener('keydown', this._onKeyLock, { passive: false })
-    document.addEventListener('keydown', this._onKeydown)
   }
 
   _unlockScroll() {
     window.removeEventListener('wheel', this._onWheelLock)
     window.removeEventListener('touchmove', this._onTouchLock)
     window.removeEventListener('keydown', this._onKeyLock)
-    document.removeEventListener('keydown', this._onKeydown)
   }
 
   _applyTransform(t, rotY) {
@@ -219,6 +219,9 @@ export class DetailView {
       if (this.state === 'opening') {
         this.state = 'project'
         this.mesh.visible = false
+        // The project page has its own scroll — only the brief WebGL
+        // open/close transitions need the background locked.
+        this._unlockScroll()
         this.onOpenComplete && this.onOpenComplete(this.activeTile, { ...this.current })
       } else {
         this.mesh.visible = false

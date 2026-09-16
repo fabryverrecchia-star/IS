@@ -169,6 +169,16 @@ export class GalleryApp {
       if (document.hidden) this.stop()
       else this.start()
     }
+    // Escape needs to know which side owns the current state: mid-transition
+    // the gallery loop is still running so DetailView can reverse itself
+    // directly, but once handed off to the project page the loop is
+    // stopped, so closing has to go through ProjectPage.close() to resume
+    // it first (same path as clicking the back link).
+    this._onKeydown = (e) => {
+      if (e.key !== 'Escape') return
+      if (this.detailView.state === 'project') this.projectPage.close()
+      else if (this.detailView.state === 'opening') this.detailView.close()
+    }
 
     window.addEventListener('resize', this._onResize)
     window.addEventListener('pointermove', this._onPointerMove, { passive: true })
@@ -176,6 +186,7 @@ export class GalleryApp {
     window.addEventListener('click', this._onClick)
     document.addEventListener('mouseleave', this._onPointerLeave)
     document.addEventListener('visibilitychange', this._onVisibility)
+    document.addEventListener('keydown', this._onKeydown)
   }
 
   _handleClick() {
@@ -333,6 +344,7 @@ export class GalleryApp {
     window.removeEventListener('click', this._onClick)
     document.removeEventListener('mouseleave', this._onPointerLeave)
     document.removeEventListener('visibilitychange', this._onVisibility)
+    document.removeEventListener('keydown', this._onKeydown)
     this.detailView.dispose()
     this.tiles.forEach((t) => t.dispose())
     this.renderer.dispose()
