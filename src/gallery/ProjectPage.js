@@ -1,3 +1,5 @@
+import { computeHeroLayout } from './heroLayout.js'
+
 // Owns the real, scrollable project page shown after the WebGL entrance
 // transition lands: a plain DOM view (hero media + optional extra images/
 // screenshots + a top bar with a visible back link and right-aligned
@@ -31,10 +33,13 @@ export class ProjectPage {
     return this.tile !== null
   }
 
-  // `rect` (the hero's hand-off transform) is intentionally unused for
-  // positioning: #project-page is a normal scrollable flow container
-  // scrolled to top, so its first child (the hero, width:100%) lands at
-  // the exact same pixel rect the WebGL hero ended at with no extra math.
+  // For a 'banner' cover (see heroLayout.js), #project-page's normal
+  // document flow already reproduces the WebGL hero's final rect exactly —
+  // a full-width first child scrolled to top needs no extra math. A
+  // 'contained' cover (very vertical media) isn't full-width, so its exact
+  // size and centering are computed here with the same helper DetailView
+  // used, and applied as inline styles — that's what keeps the hand-off
+  // pixel-identical (no pop) in that case too.
   open(tile) {
     const item = tile.item
     this.tile = tile
@@ -48,6 +53,9 @@ export class ProjectPage {
     this.heroSlot.innerHTML = ''
     this.body.innerHTML = ''
 
+    const { viewportWidth, viewportHeight } = this.app
+    const layout = computeHeroLayout({ aspect: item.aspect, viewportWidth, viewportHeight })
+
     let heroEl
     if (item.type === 'video' && tile.video) {
       heroEl = tile.video
@@ -60,6 +68,20 @@ export class ProjectPage {
       heroEl.decoding = 'async'
     }
     heroEl.className = 'project-hero-media'
+
+    if (layout.mode === 'contained') {
+      const spacer = Math.max(0, (viewportHeight - layout.height) / 2)
+      this.heroSlot.style.paddingTop = `${spacer}px`
+      this.heroSlot.style.paddingBottom = `${spacer}px`
+      heroEl.style.width = `${layout.width}px`
+      heroEl.style.margin = '0 auto'
+    } else {
+      this.heroSlot.style.paddingTop = ''
+      this.heroSlot.style.paddingBottom = ''
+      heroEl.style.width = ''
+      heroEl.style.margin = ''
+    }
+
     this.heroSlot.appendChild(heroEl)
 
     if (item.type === 'video' && item.screenshots && item.screenshots.length) {

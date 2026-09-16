@@ -49,6 +49,19 @@ const rawItems = [
     year: '',
   },
   {
+    id: 'video00',
+    type: 'video',
+    // Short 5s loop for the grid/project hero; the uploaded full-length cut
+    // (media/images/video00.mp4, ~41s) is in the repo if it's needed later
+    // (e.g. playing in full once opened) — swap `src` to that when ready.
+    src: 'media/images/video00-preview.mp4',
+    aspect: 1280 / 674,
+    title: 'Petals',
+    client: '',
+    year: '',
+    screenshots: [],
+  },
+  {
     id: 'img49',
     type: 'image',
     src: 'media/images/img49.jpg',
@@ -90,14 +103,15 @@ const rawItems = [
     year: '',
   },
   {
-    id: 'video00',
+    id: 'video01',
     type: 'video',
     // Short 5s loop for the grid/project hero; the uploaded full-length cut
-    // (media/images/video00.mp4, ~41s) is in the repo if it's needed later
-    // (e.g. playing in full once opened) — swap `src` to that when ready.
-    src: 'media/images/video00-preview.mp4',
-    aspect: 1280 / 674,
-    title: 'Petals',
+    // (media/images/video01.mp4, ~12s) is in the repo if it's needed later.
+    // Vertical (9:16) — the project page shows it centered with margins
+    // instead of full-bleed, see heroLayout.js.
+    src: 'media/images/video01-preview.mp4',
+    aspect: 720 / 1280,
+    title: 'Mirage',
     client: '',
     year: '',
     screenshots: [],

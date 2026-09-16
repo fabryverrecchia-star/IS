@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { vertexShader, fragmentShader } from './shaders.js'
 import { lerp, easeOutExpo, easeInOutCubic, clamp } from './math.js'
+import { computeHeroLayout } from './heroLayout.js'
 
 const MAX_TURN_ANGLE = 0.45 // radians (~26deg), a flourish during the move only — always 0 at rest
 const OPEN_DURATION = 0.7
@@ -114,19 +115,19 @@ export class DetailView {
     this.start.width = tile.cell.width
     this.start.height = tile.cell.height
 
-    // End target: a full-bleed banner flush with the top of the viewport —
-    // z stays 0 so world units equal CSS pixels exactly, which ProjectPage
-    // relies on to hand off to a pixel-identical DOM element with no pop.
+    // End target — banner (full-bleed, top-aligned) or contained (centered,
+    // with margins) depending on aspect; see heroLayout.js. z stays 0 so
+    // world units equal CSS pixels exactly, which ProjectPage relies on to
+    // hand off to a pixel-identical DOM element with no pop.
     const { viewportWidth, viewportHeight } = this.app
     const aspect = tile.item.aspect
-    const heroW = viewportWidth
-    const heroH = heroW / aspect
+    const layout = computeHeroLayout({ aspect, viewportWidth, viewportHeight })
 
-    this.end.x = 0
-    this.end.y = viewportHeight / 2 - heroH / 2
+    this.end.x = layout.x
+    this.end.y = layout.y
     this.end.z = 0
-    this.end.width = heroW
-    this.end.height = heroH
+    this.end.width = layout.width
+    this.end.height = layout.height
 
     const u = this.material.uniforms
     u.uMap.value = tile.uniforms.uMap.value
