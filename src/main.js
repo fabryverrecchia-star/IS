@@ -7,6 +7,7 @@ const app = document.getElementById('app')
 const loader = document.getElementById('loader')
 const loaderStage = document.getElementById('loader-stage')
 const loaderCounter = document.getElementById('loader-counter')
+const loaderWordmarkFill = document.querySelector('.loader-wordmark-fill')
 const scrollHint = document.getElementById('scroll-hint')
 
 // A small, compact preview grid — this is what the tiles scatter from and
@@ -69,23 +70,57 @@ settleOrder.forEach((tileIndex, order) => {
   loaderTiles[tileIndex].style.setProperty('--delay', `${order * 45}ms`)
 })
 
+// The counter and wordmark fill are driven by whichever is SLOWER: real
+// asset progress, or a forced 4s minimum. A fast load still takes the
+// full 4s to visually finish (no jarring instant flash); a slow load
+// keeps tracking real progress past 4s instead of stalling at it.
+const FORCED_MIN_MS = 4000
+const loadStart = performance.now()
+let realRatio = 0
+let realReady = false
+let settleTriggered = false
+
+function applyProgress(ratio) {
+  loaderCounter.textContent = Math.round(ratio * 100)
+  loaderWordmarkFill.style.clipPath = `inset(0 ${(1 - ratio) * 100}% 0 0)`
+}
+
+function triggerSettle() {
+  if (settleTriggered) return
+  settleTriggered = true
+  loaderStage.classList.add('is-settled')
+  // Give the staggered settle animation time to land (max stagger delay
+  // + its own transition duration), plus a short pause to register the
+  // small ordered grid, before it grows into the real mosaic.
+  setTimeout(() => {
+    loaderStage.classList.add('is-growing')
+    loaderTiles.forEach((tile, i) => placeTile(tile, realLayout.positions[i]))
+  }, 1600)
+  // Then, once the grow animation lands, dissolve the loader — the
+  // tiles are already sitting exactly where the real grid does.
+  setTimeout(() => loader.classList.add('is-hidden'), 2650)
+}
+
+function tick() {
+  const elapsed = performance.now() - loadStart
+  const timeRatio = Math.min(elapsed / FORCED_MIN_MS, 1)
+  applyProgress(Math.min(realRatio, timeRatio))
+  if (realReady && elapsed >= FORCED_MIN_MS) {
+    applyProgress(1)
+    triggerSettle()
+    return
+  }
+  requestAnimationFrame(tick)
+}
+requestAnimationFrame(tick)
+
 const gallery = new GalleryApp(app, {
   onProgress(ratio) {
-    loaderCounter.textContent = Math.round(ratio * 100)
+    realRatio = ratio
   },
   onReady() {
-    loaderCounter.textContent = 100
-    loaderStage.classList.add('is-settled')
-    // Give the staggered settle animation time to land (max stagger delay
-    // + its own transition duration), plus a short pause to register the
-    // small ordered grid, before it grows into the real mosaic.
-    setTimeout(() => {
-      loaderStage.classList.add('is-growing')
-      loaderTiles.forEach((tile, i) => placeTile(tile, realLayout.positions[i]))
-    }, 1600)
-    // Then, once the grow animation lands, dissolve the loader — the
-    // tiles are already sitting exactly where the real grid does.
-    setTimeout(() => loader.classList.add('is-hidden'), 2650)
+    realRatio = 1
+    realReady = true
   },
 })
 

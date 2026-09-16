@@ -340,6 +340,39 @@ body {
   opacity: 0.6;
 }
 
+/* Large wordmark at the bottom, advancing from light gray to black
+   left-to-right as loading progresses (see main.js for the combined
+   real-progress / forced-minimum-duration pacing). */
+.loader-wordmark {
+  position: absolute;
+  left: 50%;
+  bottom: clamp(28px, 6vw, 64px);
+  transform: translateX(-50%);
+  width: min(640px, 78vw);
+  transition: opacity 0.4s ease;
+}
+
+.loader-wordmark svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.loader-wordmark-base {
+  fill: #dcdcd6;
+}
+
+.loader-wordmark-fill {
+  position: absolute;
+  inset: 0;
+  fill: var(--fg);
+  clip-path: inset(0 100% 0 0);
+}
+
+.loader-stage.is-settled ~ .loader-wordmark {
+  opacity: 0;
+}
+
 /* --- magazine footer --- */
 
 .site-footer {
