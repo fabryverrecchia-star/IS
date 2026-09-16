@@ -9,22 +9,53 @@ const loaderStage = document.getElementById('loader-stage')
 const loaderCounter = document.getElementById('loader-counter')
 const scrollHint = document.getElementById('scroll-hint')
 
-// The loader's 8 tiles are the real first two grid rows, in the real grid
-// order — computing their landing spot with the same layout math the
-// gallery itself uses means "settled" already IS the home mosaic at full
-// size, so there's nothing left to scale afterward, just a quick reveal.
+// A small, compact preview grid — this is what the tiles scatter from and
+// settle back into while loading, independent of the real mosaic's size.
+function computeSmallLayout(count, viewportWidth, viewportHeight) {
+  const columns = 4
+  const rows = Math.ceil(count / columns)
+  const cellWidth = Math.min(Math.max(viewportWidth * 0.055, 48), 86)
+  const cellHeight = cellWidth * 1.2
+  const gap = Math.min(Math.max(viewportWidth * 0.008, 6), 12)
+  const gridWidth = columns * cellWidth + (columns - 1) * gap
+  const gridHeight = rows * cellHeight + (rows - 1) * gap
+  const originX = (viewportWidth - gridWidth) / 2
+  const originY = (viewportHeight - gridHeight) / 2
+
+  const positions = []
+  for (let i = 0; i < count; i++) {
+    const col = i % columns
+    const row = Math.floor(i / columns)
+    positions.push({
+      x: originX + col * (cellWidth + gap) + cellWidth / 2,
+      y: originY + row * (cellHeight + gap) + cellHeight / 2,
+      width: cellWidth,
+      height: cellHeight,
+    })
+  }
+  return positions
+}
+
 const loaderTiles = [...loaderStage.children]
-const gridLayout = computeGridLayout(galleryItems.length, window.innerWidth, window.innerHeight)
-loaderTiles.forEach((tile, i) => {
-  const cell = gridLayout.positions[i]
+const smallPositions = computeSmallLayout(loaderTiles.length, window.innerWidth, window.innerHeight)
+// The real first two grid rows, in the real grid order — this is what the
+// small settled preview grows into once loading finishes, so the reveal
+// reads as the preview becoming the mosaic rather than a cut between them.
+const realLayout = computeGridLayout(galleryItems.length, window.innerWidth, window.innerHeight)
+
+function placeTile(tile, cell) {
   tile.style.left = `${cell.x - cell.width / 2}px`
   tile.style.top = `${cell.y - cell.height / 2}px`
   tile.style.width = `${cell.width}px`
   tile.style.height = `${cell.height}px`
+}
+
+loaderTiles.forEach((tile, i) => {
+  placeTile(tile, smallPositions[i])
 
   // Scatter out toward a screen edge, in a random order/offset, so it
   // reads as loose disorder rather than a neat ring — settling them back
-  // onto the grid at 100% is what makes the reveal feel deliberate.
+  // onto the small grid at 100% is what makes the reveal feel deliberate.
   const angle = (i / loaderTiles.length) * Math.PI * 2 + (Math.random() - 0.5) * 1.4
   const radius = 22 + Math.random() * 16
   tile.style.setProperty('--dx', `${Math.cos(angle) * radius}vw`)
@@ -46,10 +77,15 @@ const gallery = new GalleryApp(app, {
     loaderCounter.textContent = 100
     loaderStage.classList.add('is-settled')
     // Give the staggered settle animation time to land (max stagger delay
-    // + its own transition duration), plus a short pause, before the whole
-    // loader dissolves — by then the tiles already sit exactly where the
-    // real grid does, so the reveal underneath is a plain crossfade.
-    setTimeout(() => loader.classList.add('is-hidden'), 1550)
+    // + its own transition duration), plus a short pause to register the
+    // small ordered grid, before it grows into the real mosaic.
+    setTimeout(() => {
+      loaderStage.classList.add('is-growing')
+      loaderTiles.forEach((tile, i) => placeTile(tile, realLayout.positions[i]))
+    }, 1600)
+    // Then, once the grow animation lands, dissolve the loader — the
+    // tiles are already sitting exactly where the real grid does.
+    setTimeout(() => loader.classList.add('is-hidden'), 2650)
   },
 })
 
