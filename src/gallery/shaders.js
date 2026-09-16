@@ -57,5 +57,13 @@ export const fragmentShader = /* glsl */ `
     tex.rgb = mix(tex.rgb, vec3(0.97), uDim * 0.9);
 
     gl_FragColor = vec4(tex.rgb, alpha);
+
+    // uMap is sRGB (see Tile.js), so the GPU hands this shader linear
+    // values — three.js normally re-encodes to the renderer's output
+    // color space for built-in materials via this same chunk, but a
+    // custom ShaderMaterial has to call it explicitly. Skipping it left
+    // linear values on a canvas expecting sRGB, which reads as crushed
+    // shadows / too much contrast next to the plain <img> on project pages.
+    #include <colorspace_fragment>
   }
 `
