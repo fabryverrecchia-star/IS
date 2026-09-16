@@ -14,7 +14,7 @@
 // Videos are temporarily removed (no real footage yet) — add them back here
 // once real clips are ready.
 
-export const galleryItems = [
+const rawItems = [
   {
     id: 'img3',
     type: 'image',
@@ -23,7 +23,6 @@ export const galleryItems = [
     title: 'Bazaar Arabia',
     client: 'Harper’s Bazaar Arabia',
     year: '',
-    images: [],
   },
   {
     id: 'img15',
@@ -33,7 +32,6 @@ export const galleryItems = [
     title: 'Faithful',
     client: '',
     year: '',
-    images: [],
   },
   {
     id: 'img27',
@@ -43,7 +41,6 @@ export const galleryItems = [
     title: 'Bloom',
     client: '',
     year: '',
-    images: [],
   },
   {
     id: 'img37',
@@ -53,7 +50,6 @@ export const galleryItems = [
     title: 'Suspension',
     client: '',
     year: '',
-    images: [],
   },
   {
     id: 'img49',
@@ -63,7 +59,6 @@ export const galleryItems = [
     title: 'Khamsa',
     client: 'Khamsa',
     year: '',
-    images: [],
   },
   {
     id: 'img61',
@@ -73,6 +68,14 @@ export const galleryItems = [
     title: 'Utility',
     client: '',
     year: '',
-    images: [],
   },
 ]
+
+// DEMO ONLY: each project's cover repeated 4x as its extra `images`, so the
+// project page's parallax scroll reveal is visible before real per-project
+// galleries exist. Replace each project's `images` array with its own real
+// extra photos, then delete this block.
+export const galleryItems = rawItems.map((item) => ({
+  ...item,
+  images: [item, item, item, item].map(({ src, aspect }) => ({ src, aspect })),
+}))
