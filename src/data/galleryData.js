@@ -130,6 +130,19 @@ const rawItems = [
       { src: 'media/images/project09.jpg', aspect: 1440 / 1920 },
     ],
   },
+  {
+    id: 'project10',
+    type: 'image',
+    src: 'media/images/project10.jpg',
+    aspect: 1170 / 1463,
+    title: 'The Weight of Character — Noomi Rapace',
+    client: 'LE MILE',
+    year: '',
+    images: [
+      { src: 'media/images/project10A.jpg', aspect: 1170 / 1465 },
+      { src: 'media/images/project11.jpg', aspect: 1170 / 1463 },
+    ],
+  },
 ]
 
 // DEMO ONLY: for any *image* project without its own real `images` yet,
