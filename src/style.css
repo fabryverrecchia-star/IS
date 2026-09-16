@@ -276,16 +276,17 @@ body {
   pointer-events: none;
 }
 
-/* Tiles sit at their small compact-preview position from the start (see
-   computeSmallLayout in main.js) — no more position scatter. Each one
-   instead reveals its own content with a bottom-to-top wipe, on an
-   independent timer unrelated to real load progress (just an entrance
-   flourish), then — once loading actually finishes — grows from that
-   small grid into the real mosaic's actual cell positions
-   (computeGridLayout), so the reveal reads as the preview scaling up
-   into the page rather than a cut between them. Random z-index per tile
-   (set in main.js) interleaves some tiles in front of and some behind
-   the centered wordmark for a layered, collaged look. */
+/* Tiles sit scattered loosely around the viewport from the start (see
+   computeScatterLayout in main.js) — no position animation for this
+   part. Each one instead reveals its own content with a bottom-to-top
+   wipe, on an independent timer unrelated to real load progress (just an
+   entrance flourish), then — once loading actually finishes — grows
+   from its scattered spot into the real mosaic's actual cell positions
+   (computeGridLayout) and straightens out, so the reveal reads as the
+   preview scaling up into the page rather than a cut between them.
+   Random z-index per tile (set in main.js) interleaves some tiles in
+   front of and some behind the centered wordmark for a layered,
+   collaged look. */
 .loader-stage {
   position: absolute;
   inset: 0;
@@ -296,6 +297,7 @@ body {
   overflow: hidden;
   background: #eee;
   clip-path: inset(100% 0 0 0);
+  transform: rotate(var(--rot, 0deg));
   transition: clip-path 1.3s cubic-bezier(0.16, 1, 0.3, 1);
   transition-delay: var(--reveal-delay, 0s);
 }
@@ -316,7 +318,8 @@ body {
     left 1s cubic-bezier(0.65, 0, 0.35, 1),
     top 1s cubic-bezier(0.65, 0, 0.35, 1),
     width 1s cubic-bezier(0.65, 0, 0.35, 1),
-    height 1s cubic-bezier(0.65, 0, 0.35, 1);
+    height 1s cubic-bezier(0.65, 0, 0.35, 1),
+    transform 1s cubic-bezier(0.65, 0, 0.35, 1);
 }
 
 .loader-counter {

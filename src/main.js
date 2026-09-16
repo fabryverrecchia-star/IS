@@ -10,38 +10,39 @@ const loaderCounter = document.getElementById('loader-counter')
 const loaderWordmarkFill = document.querySelector('.loader-wordmark-fill')
 const scrollHint = document.getElementById('scroll-hint')
 
-// A small, compact preview grid, centered on screen — where the tiles
-// sit while loading, independent of the real mosaic's size.
-function computeSmallLayout(count, viewportWidth, viewportHeight) {
-  const columns = 4
-  const rows = Math.ceil(count / columns)
+// Small preview tiles scattered loosely around the viewport (not a tidy
+// grid) — each gets a random angle/radius from screen center plus a
+// slight rotation, clamped so it stays fully on-screen.
+function computeScatterLayout(count, viewportWidth, viewportHeight) {
   const cellWidth = Math.min(Math.max(viewportWidth * 0.055, 48), 86)
   const cellHeight = cellWidth * 1.2
-  const gap = Math.min(Math.max(viewportWidth * 0.008, 6), 12)
-  const gridWidth = columns * cellWidth + (columns - 1) * gap
-  const gridHeight = rows * cellHeight + (rows - 1) * gap
-  const originX = (viewportWidth - gridWidth) / 2
-  const originY = (viewportHeight - gridHeight) / 2
+  const cx = viewportWidth / 2
+  const cy = viewportHeight / 2
+  const margin = 16
 
   const positions = []
   for (let i = 0; i < count; i++) {
-    const col = i % columns
-    const row = Math.floor(i / columns)
-    positions.push({
-      x: originX + col * (cellWidth + gap) + cellWidth / 2,
-      y: originY + row * (cellHeight + gap) + cellHeight / 2,
-      width: cellWidth,
-      height: cellHeight,
-    })
+    const angle = (i / count) * Math.PI * 2 + (Math.random() - 0.5) * 1.6
+    const radiusX = viewportWidth * (0.16 + Math.random() * 0.24)
+    const radiusY = viewportHeight * (0.12 + Math.random() * 0.26)
+    const x = Math.min(
+      Math.max(cx + Math.cos(angle) * radiusX, cellWidth / 2 + margin),
+      viewportWidth - cellWidth / 2 - margin
+    )
+    const y = Math.min(
+      Math.max(cy + Math.sin(angle) * radiusY, cellHeight / 2 + margin),
+      viewportHeight - cellHeight / 2 - margin
+    )
+    positions.push({ x, y, width: cellWidth, height: cellHeight, rotation: (Math.random() - 0.5) * 14 })
   }
   return positions
 }
 
 const loaderTiles = [...loaderStage.children]
-const smallPositions = computeSmallLayout(loaderTiles.length, window.innerWidth, window.innerHeight)
+const scatterPositions = computeScatterLayout(loaderTiles.length, window.innerWidth, window.innerHeight)
 // The real first two grid rows, in the real grid order — this is what the
-// small settled preview grows into once loading finishes, so the reveal
-// reads as the preview becoming the mosaic rather than a cut between them.
+// scattered preview grows into once loading finishes, so the reveal reads
+// as the preview becoming the mosaic rather than a cut between them.
 const realLayout = computeGridLayout(galleryItems.length, window.innerWidth, window.innerHeight)
 
 function placeTile(tile, cell) {
@@ -52,12 +53,13 @@ function placeTile(tile, cell) {
 }
 
 loaderTiles.forEach((tile, i) => {
-  placeTile(tile, smallPositions[i])
+  const cell = scatterPositions[i]
+  placeTile(tile, cell)
+  tile.style.setProperty('--rot', `${cell.rotation}deg`)
 
   // Random z-index around the wordmark's (5): about half the tiles sit in
-  // front of it, half behind — a layered, collaged look rather than a
-  // flat grid, since the small preview grid spatially overlaps the
-  // centered wordmark.
+  // front of it, half behind — a layered, collaged look since the
+  // scattered tiles overlap the centered wordmark.
   tile.style.zIndex = Math.random() < 0.5 ? 1 : 10
 
   // Each tile reveals its own content with a bottom-to-top wipe, on a
@@ -93,7 +95,10 @@ function triggerGrow() {
   // entrance delay before it starts growing into the real mosaic.
   loaderTiles.forEach((tile) => tile.classList.add('is-revealed'))
   loaderStage.classList.add('is-growing')
-  loaderTiles.forEach((tile, i) => placeTile(tile, realLayout.positions[i]))
+  loaderTiles.forEach((tile, i) => {
+    placeTile(tile, realLayout.positions[i])
+    tile.style.setProperty('--rot', '0deg')
+  })
   // Once the grow animation lands, dissolve the loader — the tiles are
   // already sitting exactly where the real grid does.
   setTimeout(() => loader.classList.add('is-hidden'), 1150)
