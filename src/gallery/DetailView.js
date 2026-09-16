@@ -143,6 +143,13 @@ export class DetailView {
     this._lockScroll()
   }
 
+  // Hides the hero mesh — called once the DOM project page actually has a
+  // frame ready to paint (see GalleryApp._handleProjectOpen), so the swap
+  // is a hard cut between two identical-looking pixels rather than a gap.
+  hideMesh() {
+    this.mesh.visible = false
+  }
+
   // Re-shows the hero mesh at the transform ProjectPage left it at, so
   // control can hand back from DOM to WebGL with no visible pop.
   showAtCurrent() {
@@ -219,7 +226,9 @@ export class DetailView {
     if (this.progress >= 1) {
       if (this.state === 'opening') {
         this.state = 'project'
-        this.mesh.visible = false
+        // The mesh stays visible until the caller confirms the DOM hand-
+        // off is ready to paint (see hideMesh()) — hiding it here would
+        // leave a gap of bare background before that.
         // The project page has its own scroll — only the brief WebGL
         // open/close transitions need the background locked.
         this._unlockScroll()

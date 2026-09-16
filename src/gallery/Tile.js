@@ -70,8 +70,12 @@ export class Tile {
     if (item.type === 'image') {
       textureLoader.load(item.src, (tex) => {
         tex.colorSpace = THREE.SRGBColorSpace
-        tex.minFilter = THREE.LinearFilter
-        tex.generateMipmaps = false
+        // Mipmapped minification (rather than a flat LinearFilter) matches
+        // how the DOM <img> on the project page downsamples the same
+        // source — without it, minifying a large photo into a small tile
+        // aliases and reads as harsher/more contrasty than the original.
+        tex.minFilter = THREE.LinearMipmapLinearFilter
+        tex.generateMipmaps = true
         this.uniforms.uMap.value = tex
         this.ready = true
         onAssetReady && onAssetReady(this)

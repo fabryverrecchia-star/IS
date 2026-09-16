@@ -198,15 +198,26 @@ export class GalleryApp {
   // Called once the WebGL entrance animation lands: hand off to the real
   // scrollable project page and pause the gallery's own render loop since
   // it's fully hidden behind an opaque page until the user navigates back.
+  // The WebGL hero stays visible (render loop still running) until the DOM
+  // page's own hero element actually has a frame ready — only then do we
+  // swap, so it's a hard cut between identical pixels instead of a gap of
+  // bare background (the "white flash", worse for video since it has to
+  // buffer a frame before it can paint anything at all).
   _handleProjectOpen(tile) {
-    this.projectPage.open(tile)
-    this.stop()
+    this.projectPage.open(tile).then(() => {
+      this.projectPage.show()
+      this.detailView.hideMesh()
+      this.stop()
+    })
   }
 
   _handleProjectClose() {
-    this.start()
+    // Mesh must be visible and positioned *before* the loop resumes —
+    // start() renders synchronously, so doing this after it would render
+    // one frame with neither the mesh nor the DOM page visible (a flash).
     this.detailView.showAtCurrent()
     this.detailView.close()
+    this.start()
   }
 
   _handleResize() {

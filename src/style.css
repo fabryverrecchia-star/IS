@@ -138,9 +138,13 @@ body {
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
-  transition: opacity 0.25s ease, visibility 0.25s ease;
 }
 
+/* Deliberately no transition: the WebGL hero (behind this, see
+   GalleryApp._handleProjectOpen) stays visible until this page's own
+   hero element has a frame ready, so the swap is an instant hard cut
+   between two identical-looking pixels — fading it would reopen a gap
+   of bare background between the two (the "white flash" glitch). */
 .project-page.is-visible {
   opacity: 1;
   visibility: visible;

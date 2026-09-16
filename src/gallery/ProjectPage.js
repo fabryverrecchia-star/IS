@@ -1,5 +1,24 @@
 import { computeHeroLayout } from './heroLayout.js'
 
+// Resolves once the element has an actual frame ready to paint — an image
+// decoded, or a video past HAVE_CURRENT_DATA. A capped wait keeps a stalled
+// asset from blocking the hand-off indefinitely.
+function waitForHeroReady(el, type) {
+  if (type === 'video') {
+    if (el.readyState >= 2) return Promise.resolve()
+    return new Promise((resolve) => {
+      el.addEventListener('loadeddata', () => resolve(), { once: true })
+      setTimeout(resolve, 800)
+    })
+  }
+  if (el.decode) return el.decode().catch(() => {})
+  if (el.complete) return Promise.resolve()
+  return new Promise((resolve) => {
+    el.addEventListener('load', () => resolve(), { once: true })
+    setTimeout(resolve, 800)
+  })
+}
+
 // Owns the real, scrollable project page shown after the WebGL entrance
 // transition lands: a plain DOM view (hero media + optional extra images/
 // screenshots + a top bar with a visible back link and right-aligned
@@ -108,6 +127,7 @@ export class ProjectPage {
     }
 
     this.heroSlot.appendChild(heroEl)
+    this._heroReady = waitForHeroReady(heroEl, item.type)
 
     if (item.type === 'video' && item.screenshots && item.screenshots.length) {
       const grid = document.createElement('div')
@@ -134,6 +154,16 @@ export class ProjectPage {
     }
 
     this.root.scrollTop = 0
+    // Caller shows the page (see `show()`) only once this resolves — the
+    // WebGL hero stays on screen until the DOM one actually has a frame
+    // to paint, so the swap is a hard cut between two identical-looking
+    // pixels instead of a fade with nothing (a white flash) in between.
+    return this._heroReady
+  }
+
+  // Makes the built page visible — instant, no fade (see open()'s comment
+  // on why easing this would reintroduce the flash it's meant to avoid).
+  show() {
     this.root.classList.add('is-visible')
   }
 
