@@ -10,8 +10,8 @@ const loaderCounter = document.getElementById('loader-counter')
 const loaderWordmarkFill = document.querySelector('.loader-wordmark-fill')
 const scrollHint = document.getElementById('scroll-hint')
 
-// A small, compact preview grid — this is what the tiles scatter from and
-// settle back into while loading, independent of the real mosaic's size.
+// A small, compact preview grid, centered on screen — where the tiles
+// sit while loading, independent of the real mosaic's size.
 function computeSmallLayout(count, viewportWidth, viewportHeight) {
   const columns = 4
   const rows = Math.ceil(count / columns)
@@ -54,20 +54,21 @@ function placeTile(tile, cell) {
 loaderTiles.forEach((tile, i) => {
   placeTile(tile, smallPositions[i])
 
-  // Scatter out toward a screen edge, in a random order/offset, so it
-  // reads as loose disorder rather than a neat ring — settling them back
-  // onto the small grid at 100% is what makes the reveal feel deliberate.
-  const angle = (i / loaderTiles.length) * Math.PI * 2 + (Math.random() - 0.5) * 1.4
-  const radius = 22 + Math.random() * 16
-  tile.style.setProperty('--dx', `${Math.cos(angle) * radius}vw`)
-  tile.style.setProperty('--dy', `${Math.sin(angle) * radius}vh`)
-  tile.style.setProperty('--dr', `${(Math.random() - 0.5) * 50}deg`)
+  // Random z-index around the wordmark's (5): about half the tiles sit in
+  // front of it, half behind — a layered, collaged look rather than a
+  // flat grid, since the small preview grid spatially overlaps the
+  // centered wordmark.
+  tile.style.zIndex = Math.random() < 0.5 ? 1 : 10
+
+  // Each tile reveals its own content with a bottom-to-top wipe, on a
+  // random delay — a decorative entrance independent of real load
+  // progress (that's tracked separately by the counter/wordmark fill).
+  tile.style.setProperty('--reveal-delay', `${Math.random() * 900}ms`)
 })
-// Shuffle the settle order independently of scatter position for a less
-// mechanical cascade.
-const settleOrder = loaderTiles.map((_, i) => i).sort(() => Math.random() - 0.5)
-settleOrder.forEach((tileIndex, order) => {
-  loaderTiles[tileIndex].style.setProperty('--delay', `${order * 45}ms`)
+// Trigger the reveal on the next frame so the initial clipped state
+// actually paints first (otherwise there's nothing to transition from).
+requestAnimationFrame(() => {
+  loaderTiles.forEach((tile) => tile.classList.add('is-revealed'))
 })
 
 // The counter and wordmark fill are driven by whichever is SLOWER: real
@@ -78,27 +79,24 @@ const FORCED_MIN_MS = 4000
 const loadStart = performance.now()
 let realRatio = 0
 let realReady = false
-let settleTriggered = false
+let growTriggered = false
 
 function applyProgress(ratio) {
   loaderCounter.textContent = Math.round(ratio * 100)
   loaderWordmarkFill.style.clipPath = `inset(0 ${(1 - ratio) * 100}% 0 0)`
 }
 
-function triggerSettle() {
-  if (settleTriggered) return
-  settleTriggered = true
-  loaderStage.classList.add('is-settled')
-  // Give the staggered settle animation time to land (max stagger delay
-  // + its own transition duration), plus a short pause to register the
-  // small ordered grid, before it grows into the real mosaic.
-  setTimeout(() => {
-    loaderStage.classList.add('is-growing')
-    loaderTiles.forEach((tile, i) => placeTile(tile, realLayout.positions[i]))
-  }, 1600)
-  // Then, once the grow animation lands, dissolve the loader — the
-  // tiles are already sitting exactly where the real grid does.
-  setTimeout(() => loader.classList.add('is-hidden'), 2650)
+function triggerGrow() {
+  if (growTriggered) return
+  growTriggered = true
+  // Make sure every tile is fully revealed regardless of its random
+  // entrance delay before it starts growing into the real mosaic.
+  loaderTiles.forEach((tile) => tile.classList.add('is-revealed'))
+  loaderStage.classList.add('is-growing')
+  loaderTiles.forEach((tile, i) => placeTile(tile, realLayout.positions[i]))
+  // Once the grow animation lands, dissolve the loader — the tiles are
+  // already sitting exactly where the real grid does.
+  setTimeout(() => loader.classList.add('is-hidden'), 1150)
 }
 
 function tick() {
@@ -107,7 +105,7 @@ function tick() {
   applyProgress(Math.min(realRatio, timeRatio))
   if (realReady && elapsed >= FORCED_MIN_MS) {
     applyProgress(1)
-    triggerSettle()
+    triggerGrow()
     return
   }
   requestAnimationFrame(tick)
