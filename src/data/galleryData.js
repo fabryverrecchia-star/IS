@@ -51,10 +51,10 @@ const rawItems = [
   {
     id: 'video00',
     type: 'video',
-    // Short 5s loop for the grid/project hero; the uploaded full-length cut
-    // (media/images/video00.mp4, ~41s) is in the repo if it's needed later
-    // (e.g. playing in full once opened) — swap `src` to that when ready.
+    // Short muted 5s loop for the grid tile teaser; the project page plays
+    // the real uploaded cut (with sound) instead, via fullSrc.
     src: 'media/images/video00-preview.mp4',
+    fullSrc: 'media/images/video00.mp4',
     aspect: 1280 / 674,
     title: 'Petals',
     client: '',
@@ -105,11 +105,12 @@ const rawItems = [
   {
     id: 'video01',
     type: 'video',
-    // Short 5s loop for the grid/project hero; the uploaded full-length cut
-    // (media/images/video01.mp4, ~12s) is in the repo if it's needed later.
+    // Short muted 5s loop for the grid tile teaser; the project page plays
+    // the real uploaded cut (with sound) instead, via fullSrc.
     // Vertical (9:16) — the project page shows it centered with margins
     // instead of full-bleed, see heroLayout.js.
     src: 'media/images/video01-preview.mp4',
+    fullSrc: 'media/images/video01.mp4',
     aspect: 720 / 1280,
     title: 'Mirage',
     client: '',

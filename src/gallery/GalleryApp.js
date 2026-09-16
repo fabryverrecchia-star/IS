@@ -201,9 +201,6 @@ export class GalleryApp {
   _handleProjectOpen(tile) {
     this.projectPage.open(tile)
     this.stop()
-    // stop() pauses every tile's video; the one now playing in the project
-    // page itself should keep going.
-    if (tile.video) tile.setVideoPlaying(true)
   }
 
   _handleProjectClose() {

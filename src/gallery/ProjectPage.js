@@ -57,10 +57,35 @@ export class ProjectPage {
     const layout = computeHeroLayout({ aspect: item.aspect, viewportWidth, viewportHeight })
 
     let heroEl
-    if (item.type === 'video' && tile.video) {
-      heroEl = tile.video
-      heroEl.controls = false
-      if (heroEl.paused) heroEl.play().catch(() => {})
+    if (item.type === 'video') {
+      // The grid tile's video is a short muted loop driving the WebGL
+      // texture — the project page instead plays the real uploaded cut,
+      // with sound and native controls, as its own independent element.
+      heroEl = document.createElement('video')
+      heroEl.playsInline = true
+      heroEl.setAttribute('playsinline', '')
+      heroEl.controls = true
+      heroEl.preload = 'auto'
+      const fullSrc = item.fullSrc || item.src
+      // Same WebM/VP9-first, MP4/H.264-fallback pairing as the grid tile
+      // (see Tile.js) — some engines only decode one of the two.
+      const webmSource = document.createElement('source')
+      webmSource.src = fullSrc.replace(/\.mp4$/, '.webm')
+      webmSource.type = 'video/webm; codecs="vp9,opus"'
+      const mp4Source = document.createElement('source')
+      mp4Source.src = fullSrc
+      mp4Source.type = 'video/mp4'
+      heroEl.appendChild(webmSource)
+      heroEl.appendChild(mp4Source)
+      heroEl.load()
+      this._fullVideoEl = heroEl
+      // Unmuted autoplay can be blocked depending on browser engagement
+      // heuristics; fall back to a muted start rather than stalling
+      // playback entirely — controls stay on so sound is one click away.
+      heroEl.play().catch(() => {
+        heroEl.muted = true
+        heroEl.play().catch(() => {})
+      })
     } else {
       heroEl = document.createElement('img')
       heroEl.src = item.src
@@ -113,9 +138,11 @@ export class ProjectPage {
   }
 
   close() {
-    if (this.tile && this.tile.video) {
-      const pool = document.querySelector('.gallery-video-pool')
-      if (pool) pool.appendChild(this.tile.video)
+    if (this._fullVideoEl) {
+      this._fullVideoEl.pause()
+      this._fullVideoEl.removeAttribute('src')
+      this._fullVideoEl.load()
+      this._fullVideoEl = null
     }
     this.root.classList.remove('is-visible')
     const tile = this.tile
