@@ -266,13 +266,8 @@ body {
   position: fixed;
   inset: 0;
   z-index: 20;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: clamp(28px, 5vw, 52px);
   background: var(--bg);
-  transition: opacity 0.7s ease, visibility 0.7s ease;
+  transition: opacity 0.5s ease, visibility 0.5s ease;
 }
 
 .loader.is-hidden {
@@ -281,19 +276,22 @@ body {
   pointer-events: none;
 }
 
-.loader-grid {
-  display: grid;
-  grid-template-columns: repeat(4, clamp(48px, 7vw, 86px));
-  grid-auto-rows: clamp(62px, 9vw, 112px);
-  gap: clamp(6px, 1vw, 12px);
+/* Tiles are positioned to land exactly on the real grid's cells (see
+   layout.js / main.js) — settling isn't just reordering, it's the tiles
+   growing into the actual home mosaic, so the reveal underneath is
+   seamless rather than a hard cut between two different layouts. */
+.loader-stage {
+  position: absolute;
+  inset: 0;
 }
 
 .loader-tile {
+  position: absolute;
   overflow: hidden;
   background: #eee;
   opacity: 0.92;
-  transform: translate(var(--dx), var(--dy)) rotate(var(--dr)) scale(0.8);
-  transition: transform 0.9s cubic-bezier(0.16, 1, 0.3, 1);
+  transform: translate(var(--dx), var(--dy)) rotate(var(--dr)) scale(0.82);
+  transition: transform 1s cubic-bezier(0.16, 1, 0.3, 1);
   transition-delay: 0s;
 }
 
@@ -304,19 +302,27 @@ body {
   object-fit: cover;
 }
 
-.loader-grid.is-settled .loader-tile {
+.loader-stage.is-settled .loader-tile {
   transform: translate(0, 0) rotate(0deg) scale(1);
   opacity: 1;
   transition-delay: var(--delay);
 }
 
 .loader-counter {
+  position: absolute;
+  top: 32px;
+  left: 50%;
+  transform: translateX(-50%);
   font-size: clamp(13px, 1.4vw, 15px);
   letter-spacing: 0.14em;
   color: var(--fg-dim);
   font-variant-numeric: tabular-nums;
-  min-width: 2.6em;
   text-align: center;
+  transition: opacity 0.4s ease;
+}
+
+.loader-stage.is-settled ~ .loader-counter {
+  opacity: 0;
 }
 
 .loader-counter::after {
