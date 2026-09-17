@@ -14,6 +14,9 @@ import { loadGsap } from './loadGsap.js'
 // GalleryApp._handleCarousel3DOpen), so there's only one "view a project in
 // full" implementation to maintain.
 const CARDS_PER_SCENE = 4
+// Must match .c3d-carousel's own `translateZ()` in style.css — the resting
+// depth a carousel sits at before any scroll-driven rotation is applied.
+const CAROUSEL_REST_Z = -550
 
 export class Carousel3DView {
   constructor({ items, onOpenItem }) {
@@ -155,11 +158,24 @@ export class Carousel3DView {
       },
     })
 
+    // The wobble/tilt below is meant to be a fleeting mid-scroll effect —
+    // fine to rest anywhere in its ±3/±10 range for a middle scene, since
+    // the user only ever sees it in motion, passing through on their way
+    // to the next scene. isFirst/isLast scenes are different: whichever
+    // end of the scrub range is their *permanent, no-more-scroll-available*
+    // resting position (progress 0 for isFirst, 1 for isLast) is a state
+    // real visitors sit on and look at, so it's zeroed to a flat, straight
+    // card there instead of the ordinary tilted extreme.
+    const wobbleFrom = isFirst ? 0 : 3
+    const wobbleTo = isLast ? 0 : -3
+    const cardRotFrom = isFirst ? 0 : 10
+    const cardRotTo = isLast ? 0 : -10
+
     timeline
       .fromTo(carousel, { rotationY: 0 }, { rotationY: -180 }, 0)
-      .fromTo(carousel, { rotationZ: 3, rotationX: 3 }, { rotationZ: -3, rotationX: -3 }, 0)
+      .fromTo(carousel, { rotationZ: wobbleFrom, rotationX: wobbleFrom }, { rotationZ: wobbleTo, rotationX: wobbleTo }, 0)
       .fromTo(cards, { filter: 'brightness(100%)' }, { filter: 'brightness(80%)', ease: 'power3' }, 0)
-      .fromTo(cards, { rotationZ: 10 }, { rotationZ: -10, ease: 'none' }, 0)
+      .fromTo(cards, { rotationZ: cardRotFrom }, { rotationZ: cardRotTo, ease: 'none' }, 0)
 
     if (chars.length > 0) {
       this._animateChars(gsap, chars, 'in', {
@@ -188,9 +204,17 @@ export class Carousel3DView {
     // that attribute back — and the resting scrub timeline below never
     // touches `z` at all (only the fly-away does), so a stale cached z
     // would otherwise render forever once anything else nudges the
-    // transform. Reset every property the fly-away actually touches.
+    // transform. Reset every property the fly-away actually touches, back
+    // to the *CSS resting values* (z: CAROUSEL_REST_Z), not z: 0 — zeroing
+    // it out entirely used to drag every carousel ~550px toward the camera,
+    // wildly amplifying the perspective-projected size of the front card.
     gsap.set(this.root, { clearProps: 'all' })
-    gsap.set(this.sceneWrapper.querySelectorAll('.c3d-carousel'), { z: 0, rotationX: 0, rotationY: 0, rotationZ: 0 })
+    gsap.set(this.sceneWrapper.querySelectorAll('.c3d-carousel'), {
+      z: CAROUSEL_REST_Z,
+      rotationX: 0,
+      rotationY: 0,
+      rotationZ: 0,
+    })
     gsap.set(this.sceneWrapper.querySelectorAll('.c3d-card'), { rotationZ: 0 })
 
     // SplitText re-splits fresh each entry (chars are plain spans, cheap)
