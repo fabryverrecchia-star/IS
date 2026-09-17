@@ -12,8 +12,13 @@
       <header class="site-header">
         <img class="site-mark" src="/logo-picto.svg" alt="Ismael Nebchi" />
         <span class="site-subtitle">Selected&nbsp;Works</span>
-        <button class="overview-toggle" id="overview-toggle" type="button" aria-label="Vue d'ensemble" aria-pressed="false">
-          <span></span><span></span><span></span><span></span>
+        <button class="overview-toggle" id="overview-toggle" type="button" aria-label="Changer de vue" data-mode="grid">
+          <span class="overview-toggle-icon overview-toggle-icon--grid">
+            <span></span><span></span><span></span><span></span>
+          </span>
+          <span class="overview-toggle-icon overview-toggle-icon--lines">
+            <span></span><span></span><span></span>
+          </span>
         </button>
       </header>
 
@@ -22,6 +27,15 @@
         Scroll
       </div>
 
+      <div class="fulltext-view" id="fulltext-view" aria-hidden="true">
+        <div class="fulltext-list" id="fulltext-list"></div>
+      </div>
+
+    </div>
+
+    <div class="fulltext-preview" id="fulltext-preview" aria-hidden="true">
+      <img class="fulltext-preview-media" id="fulltext-preview-img" alt="" />
+      <video class="fulltext-preview-media" id="fulltext-preview-video" muted loop playsinline></video>
     </div>
 
     <div class="project-page" id="project-page">

@@ -25,9 +25,15 @@ export class GalleryApp {
     this.loadedCount = 0
     this.readyFired = false
 
-    this.overviewActive = false
+    this.viewMode = 'grid' // 'grid' | 'overview' | 'fulltext' (see toggleViewMode)
     this.layoutTransition = null
     this.overviewToggle = document.getElementById('overview-toggle')
+    this.fulltextView = document.getElementById('fulltext-view')
+    this.fulltextList = document.getElementById('fulltext-list')
+    this.fulltextPreview = document.getElementById('fulltext-preview')
+    this.fulltextPreviewImg = document.getElementById('fulltext-preview-img')
+    this.fulltextPreviewVideo = document.getElementById('fulltext-preview-video')
+    this._buildFulltextList()
 
     this.viewportWidth = window.innerWidth
     this.viewportHeight = window.innerHeight
@@ -83,6 +89,19 @@ export class GalleryApp {
     this.root.appendChild(this.videoContainer)
   }
 
+  // Builds the magazine-style title list once at startup (kept in the DOM,
+  // hidden via CSS until viewMode === 'fulltext' — see toggleViewMode).
+  _buildFulltextList() {
+    this.items.forEach((item, index) => {
+      const btn = document.createElement('button')
+      btn.type = 'button'
+      btn.className = 'fulltext-item'
+      btn.dataset.index = String(index)
+      btn.textContent = item.title
+      this.fulltextList.appendChild(btn)
+    })
+  }
+
   _initThree() {
     this.scene = new THREE.Scene()
 
@@ -120,7 +139,7 @@ export class GalleryApp {
   }
 
   _buildLayout(initial) {
-    const layoutFn = this.overviewActive ? computeOverviewLayout : computeGridLayout
+    const layoutFn = this.viewMode === 'overview' ? computeOverviewLayout : computeGridLayout
     this.layout = layoutFn(this.items.length, this.viewportWidth, this.viewportHeight)
     this.spacer.style.height = `${Math.round(this.layout.totalHeight)}px`
 
@@ -180,7 +199,39 @@ export class GalleryApp {
     this._onClick = () => this._handleClick()
     this._onOverviewToggle = (e) => {
       e.stopPropagation()
-      this.toggleOverview()
+      this.toggleViewMode()
+    }
+    this._onFulltextClick = (e) => {
+      const item = e.target.closest('.fulltext-item')
+      if (!item) return
+      e.stopPropagation()
+      this._handleFulltextOpen(Number(item.dataset.index))
+    }
+    this._onFulltextOver = (e) => {
+      const item = e.target.closest('.fulltext-item')
+      if (!item) return
+      const galleryItem = this.items[Number(item.dataset.index)]
+      if (galleryItem.type === 'video') {
+        this.fulltextPreviewImg.classList.remove('is-active')
+        this.fulltextPreviewVideo.classList.add('is-active')
+        if (this.fulltextPreviewVideo.getAttribute('src') !== galleryItem.src) {
+          this.fulltextPreviewVideo.src = galleryItem.src
+        }
+        this.fulltextPreviewVideo.play().catch(() => {})
+      } else {
+        this.fulltextPreviewVideo.pause()
+        this.fulltextPreviewVideo.classList.remove('is-active')
+        this.fulltextPreviewImg.classList.add('is-active')
+        this.fulltextPreviewImg.src = galleryItem.src
+      }
+      this.fulltextPreview.classList.add('is-visible')
+    }
+    this._onFulltextLeave = () => {
+      this.fulltextPreview.classList.remove('is-visible')
+      this.fulltextPreviewVideo.pause()
+    }
+    this._onFulltextMove = (e) => {
+      this.fulltextPreview.style.transform = `translate(${e.clientX + 28}px, ${e.clientY - 162}px)`
     }
     this._onVisibility = () => {
       if (document.hidden) this.stop()
@@ -207,20 +258,35 @@ export class GalleryApp {
     document.addEventListener('visibilitychange', this._onVisibility)
     document.addEventListener('keydown', this._onKeydown)
     this.overviewToggle.addEventListener('click', this._onOverviewToggle)
+    this.fulltextList.addEventListener('click', this._onFulltextClick)
+    this.fulltextList.addEventListener('pointerover', this._onFulltextOver)
+    this.fulltextList.addEventListener('pointerleave', this._onFulltextLeave)
+    this.fulltextList.addEventListener('pointermove', this._onFulltextMove)
   }
 
-  // Zooms the mosaic between the curated max-4-column scroll layout and a
-  // denser overview where every item fits on screen at once (see
-  // computeOverviewLayout) — tiles tween smoothly between the two rather
-  // than snapping, driven per-frame in _update().
-  toggleOverview() {
+  // Cycles the header toggle through the 3 view modes: the curated
+  // max-4-column grid, the scattered "overview" mosaic (computeOverviewLayout),
+  // and the full-text magazine list (see _enterFulltext/_exitFulltextToGrid).
+  // Grid<->overview tween tiles between layouts per-frame in _update();
+  // entering/leaving full text just swaps the WebGL canvas for the DOM list
+  // since the tiles are fully hidden either way, so a snap is unnoticeable.
+  toggleViewMode() {
     if (this.detailView.isActive) return
-    this.overviewActive = !this.overviewActive
-    this.overviewToggle.setAttribute('aria-pressed', String(this.overviewActive))
-    document.body.classList.toggle('overview-active', this.overviewActive)
+    if (this.viewMode === 'grid') this._enterOverview()
+    else if (this.viewMode === 'overview') this._enterFulltext()
+    else this._exitFulltextToGrid()
+  }
 
-    const layoutFn = this.overviewActive ? computeOverviewLayout : computeGridLayout
-    const newLayout = layoutFn(this.items.length, this.viewportWidth, this.viewportHeight)
+  _setMode(mode) {
+    this.viewMode = mode
+    this.overviewToggle.setAttribute('data-mode', mode)
+    document.body.classList.toggle('overview-active', mode !== 'grid')
+    document.body.classList.toggle('fulltext-active', mode === 'fulltext')
+  }
+
+  _enterOverview() {
+    this._setMode('overview')
+    const newLayout = computeOverviewLayout(this.items.length, this.viewportWidth, this.viewportHeight)
     const fromCells = this.tiles.map((tile) => ({ ...tile.cell }))
 
     this.layout = newLayout
@@ -235,7 +301,37 @@ export class GalleryApp {
     }
   }
 
+  _enterFulltext() {
+    this._setMode('fulltext')
+    this.layoutTransition = null
+    window.scrollTo(0, 0)
+    // The list's own rendered height (its content grows with clamp()'d
+    // font sizes) is what should drive the real scrollbar range while
+    // it's showing, not whatever the mosaic layout last computed.
+    this.spacer.style.height = `${Math.round(this.fulltextView.offsetHeight)}px`
+  }
+
+  _exitFulltextToGrid() {
+    this._setMode('grid')
+    window.scrollTo(0, 0)
+    this.fulltextList.style.transform = ''
+    this.fulltextPreview.classList.remove('is-visible')
+    this.fulltextPreviewVideo.pause()
+    // Tiles were hidden the whole time fulltext was showing, so there's
+    // nothing to tween from — just snap them straight to the grid layout.
+    this._buildLayout(false)
+  }
+
+  _handleFulltextOpen(index) {
+    if (this.detailView.isActive) return
+    const tile = this.tiles[index]
+    if (!tile) return
+    this._exitFulltextToGrid()
+    this.detailView.open(tile)
+  }
+
   _handleClick() {
+    if (this.viewMode === 'fulltext') return
     if (this.detailView.state !== 'idle') return
     const tile = this.detailView.pick(this.mouseNDC)
     if (tile) this.detailView.open(tile)
@@ -287,7 +383,14 @@ export class GalleryApp {
     // Any in-flight layout tween was computed against the old viewport —
     // drop it and let _buildLayout snap tiles straight to the new one.
     this.layoutTransition = null
-    this._buildLayout(false)
+
+    if (this.viewMode === 'fulltext') {
+      // Tiles stay hidden and wherever they were — only the list's own
+      // (now reflowed) height needs to keep driving the scroll range.
+      this.spacer.style.height = `${Math.round(this.fulltextView.offsetHeight)}px`
+    } else {
+      this._buildLayout(false)
+    }
   }
 
   _handlePointerMove(e) {
@@ -331,6 +434,12 @@ export class GalleryApp {
     this.contentGroup.position.y = this.scrollSmoothed
     this.contentGroup.rotation.x = this.tiltCurrent
 
+    // Full-text view has no WebGL content of its own — same scroll-velocity
+    // tilt value, just applied as a CSS transform on the title list instead.
+    if (this.viewMode === 'fulltext') {
+      this.fulltextList.style.transform = `rotateX(${this.tiltCurrent}rad)`
+    }
+
     // --- overview toggle: tween tiles between the two layouts ---
     if (this.layoutTransition) {
       const t = this.layoutTransition
@@ -363,8 +472,10 @@ export class GalleryApp {
     const activeTile = this.detailView.activeTile
     // Magnet math below reads tile.restX/restY/cell, which are being
     // rewritten every frame by the layout tween above — skip it while
-    // that's in flight rather than chase a moving target.
-    const magnetSuppressed = detailActive || !!this.layoutTransition
+    // that's in flight rather than chase a moving target. Also skip while
+    // the full-text list covers the (hidden) tiles entirely.
+    const fulltextActive = this.viewMode === 'fulltext'
+    const magnetSuppressed = detailActive || fulltextActive || !!this.layoutTransition
 
     // --- mouse -> world -> content-local ---
     if (this.mouseActive && !magnetSuppressed) {
@@ -420,6 +531,8 @@ export class GalleryApp {
         let withinView
         if (detailActive) {
           withinView = tile === activeTile
+        } else if (fulltextActive) {
+          withinView = false
         } else {
           const worldY = tile.restY + this.scrollSmoothed
           withinView =
@@ -444,6 +557,10 @@ export class GalleryApp {
     document.removeEventListener('visibilitychange', this._onVisibility)
     document.removeEventListener('keydown', this._onKeydown)
     this.overviewToggle.removeEventListener('click', this._onOverviewToggle)
+    this.fulltextList.removeEventListener('click', this._onFulltextClick)
+    this.fulltextList.removeEventListener('pointerover', this._onFulltextOver)
+    this.fulltextList.removeEventListener('pointerleave', this._onFulltextLeave)
+    this.fulltextList.removeEventListener('pointermove', this._onFulltextMove)
     this.detailView.dispose()
     this.tiles.forEach((t) => t.dispose())
     this.renderer.dispose()
