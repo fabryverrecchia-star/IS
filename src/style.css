@@ -445,78 +445,32 @@ body.overview-active .scroll-hint {
   color: var(--fg);
   border-top: 1px solid rgba(20, 20, 15, 0.12);
   padding: clamp(48px, 8vw, 96px) clamp(20px, 6vw, 64px) 0;
+  overflow: hidden;
 }
 
-.footer-inner {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  grid-template-areas: 'mark back' 'columns columns';
-  align-items: start;
-  gap: 24px 32px;
-  padding-bottom: clamp(40px, 6vw, 72px);
+.footer-nav {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: baseline;
+  gap: clamp(24px, 6vw, 80px);
+  padding-bottom: clamp(32px, 5vw, 56px);
   border-bottom: 1px solid rgba(20, 20, 15, 0.12);
 }
 
-.footer-mark {
-  grid-area: mark;
-  display: block;
-  width: clamp(200px, 30vw, 380px);
-  height: auto;
-}
-
-.footer-back {
-  grid-area: back;
-  align-self: end;
-  font-size: 11px;
-  letter-spacing: 0.1em;
+.footer-nav a {
+  font-size: 12px;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--fg-dim);
-  text-decoration: none;
-  white-space: nowrap;
-  transition: color 0.2s ease;
-}
-
-.footer-back:hover {
-  color: var(--fg);
-}
-
-.footer-columns {
-  grid-area: columns;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 32px;
-  max-width: 640px;
-}
-
-.footer-col h3 {
-  margin: 0 0 14px;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--fg-dim);
-}
-
-.footer-col ul {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.footer-col a {
-  font-size: 14px;
   color: var(--fg);
   text-decoration: none;
   border-bottom: 1px solid transparent;
-  transition: border-color 0.2s ease, color 0.2s ease;
+  transition: color 0.2s ease, border-color 0.2s ease;
 }
 
-.footer-col a:hover {
-  border-color: currentColor;
+.footer-nav a:hover {
   color: var(--accent);
+  border-color: currentColor;
 }
 
 .footer-bottom {
@@ -531,20 +485,20 @@ body.overview-active .scroll-hint {
   color: var(--fg-dim);
 }
 
-@media (max-width: 700px) {
-  .footer-inner {
-    grid-template-columns: 1fr;
-    grid-template-areas: 'mark' 'back' 'columns';
-  }
+/* Oversized wordmark, centered, deliberately cropped at the footer's
+   bottom edge (overflow: hidden on .site-footer + translateY push) —
+   an editorial "bleed" treatment rather than a contained logo. */
+.footer-wordmark {
+  display: flex;
+  justify-content: center;
+}
 
-  .footer-back {
-    justify-self: start;
-  }
-
-  .footer-columns {
-    grid-template-columns: 1fr 1fr;
-    max-width: none;
-  }
+.footer-wordmark img {
+  display: block;
+  width: clamp(420px, 74vw, 1200px);
+  height: auto;
+  transform: translateY(4%);
+  pointer-events: none;
 }
 
 @media (max-width: 560px) {
@@ -552,7 +506,11 @@ body.overview-active .scroll-hint {
     display: none;
   }
 
-  .footer-columns {
-    grid-template-columns: 1fr;
+  .footer-nav {
+    gap: 20px 28px;
+  }
+
+  .footer-wordmark img {
+    width: 92vw;
   }
 }
