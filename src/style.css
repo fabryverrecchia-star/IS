@@ -305,6 +305,11 @@ body.overview-active .scroll-hint {
   display: block;
   width: 100%;
   height: auto;
+  /* Base scale matches the one applied alongside the parallax translateY
+     in ProjectPage._updateParallax — kept here too so the very first frame
+     (before any scroll fires) already has the overscan margin, instead of
+     the image visibly "growing" on the first scroll tick. */
+  transform: scale(1.18);
   will-change: transform;
 }
 

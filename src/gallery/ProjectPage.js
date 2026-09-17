@@ -185,8 +185,10 @@ export class ProjectPage {
     this.body.querySelectorAll('.project-extra-img').forEach((img) => {
       const rect = img.getBoundingClientRect()
       const center = rect.top + rect.height / 2
-      const offset = (center - vh / 2) * -0.08
-      img.style.transform = `translateY(${offset}px)`
+      const offset = (center - vh / 2) * -0.16
+      // The image is scaled up (see .project-extra-img) so this shift never
+      // uncovers empty space at the top/bottom of its overflow:hidden wrap.
+      img.style.transform = `scale(1.18) translateY(${offset}px)`
     })
   }
 }
