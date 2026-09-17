@@ -65,7 +65,6 @@ export class Carousel3DView {
 
       const carousel = document.createElement('div')
       carousel.className = 'c3d-carousel'
-      carousel._radius = 420
 
       sources.forEach((src) => {
         const cell = document.createElement('div')
@@ -94,10 +93,27 @@ export class Carousel3DView {
   _setupCarouselCells(carousel) {
     const cells = carousel.querySelectorAll('.c3d-carousel__cell')
     const count = cells.length
-    const radius = carousel._radius
+    // Radius tracks the carousel's own current (fluid, clamp()'d) width
+    // rather than a fixed px value — the fixed value used to describe a
+    // fine desktop-sized carousel but left cards on narrower viewports
+    // hugely over-projected and spilling off screen, since the perspective
+    // math didn't know the card had shrunk. Same ratio (420/400) as the
+    // original fixed desktop numbers, just computed instead of hardcoded.
+    const radius = carousel.offsetWidth * 1.05
     const angleStep = 360 / count
     cells.forEach((cell, i) => {
       cell.style.transform = `rotateY(${i * angleStep}deg) translateZ(${radius}px)`
+    })
+  }
+
+  // Called on window resize while this mode is active (see
+  // GalleryApp._handleResize) — the fluid clamp()'d card size changes with
+  // viewport width, so the radius each cell sits at has to be recomputed
+  // to match, or cards drift out of alignment with their own carousel.
+  handleResize() {
+    if (!this.active) return
+    this.sceneWrapper.querySelectorAll('.c3d-carousel').forEach((carousel) => {
+      this._setupCarouselCells(carousel)
     })
   }
 

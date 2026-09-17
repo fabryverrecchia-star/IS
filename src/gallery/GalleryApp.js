@@ -569,8 +569,11 @@ export class GalleryApp {
       // (now reflowed) height needs to keep driving the scroll range.
       this.spacer.style.height = `${Math.round(this.fulltextView.offsetHeight)}px`
     } else if (this.viewMode === 'carousel3d') {
-      // Tiles are irrelevant here — GSAP's own ScrollTrigger instances need
-      // their positions/heights recomputed instead.
+      // Tiles are irrelevant here — the carousels' own fluid card size
+      // changed too, so their 3D radius needs recomputing to match (see
+      // Carousel3DView.handleResize) before ScrollTrigger just re-measures
+      // positions/heights.
+      this.carousel3D.handleResize()
       window.ScrollTrigger?.refresh()
     } else {
       this._buildLayout(false)

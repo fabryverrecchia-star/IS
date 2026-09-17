@@ -801,11 +801,20 @@ body.carousel3d-active .carousel3d-view {
 }
 
 .c3d-carousel {
-  width: 400px;
-  height: 500px;
+  /* Fluid card size — was a single hard breakpoint (400px desktop /
+     260px <=700px) with the 3D rotation radius left hardcoded in JS,
+     so on any viewport in between (or below 700px) the card visibly
+     outgrew its perspective-projected footprint: huge, overflowing,
+     misaligned cards. Carousel3DView reads this computed width back
+     (offsetWidth) to size the radius, so the two now always agree. */
+  --c3d-w: clamp(200px, 30vw, 400px);
+  --c3d-h: calc(var(--c3d-w) * 1.25);
+  width: var(--c3d-w);
+  height: var(--c3d-h);
   top: 50%;
   left: 50%;
-  margin: -250px 0 0 -200px;
+  margin-top: calc(var(--c3d-h) / -2);
+  margin-left: calc(var(--c3d-w) / -2);
   position: absolute;
   transform-style: preserve-3d;
   will-change: transform;
@@ -818,8 +827,8 @@ body.carousel3d-active .carousel3d-view {
 
 .c3d-carousel__cell {
   position: absolute;
-  width: 400px;
-  height: 520px;
+  width: var(--c3d-w);
+  height: calc(var(--c3d-h) * 1.04);
   left: 0;
   top: 0;
   transform-style: preserve-3d;
@@ -844,17 +853,4 @@ body.carousel3d-active .carousel3d-view {
 
 .c3d-card__face--back {
   transform: rotateY(180deg);
-}
-
-@media (max-width: 700px) {
-  .c3d-carousel {
-    width: 260px;
-    height: 340px;
-    margin: -170px 0 0 -130px;
-  }
-
-  .c3d-carousel__cell {
-    width: 260px;
-    height: 340px;
-  }
 }
