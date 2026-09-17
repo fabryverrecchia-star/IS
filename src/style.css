@@ -89,6 +89,17 @@ body.overview-active .scroll-hint {
   display: none;
 }
 
+/* Press-and-drag scroll hint for the overview layout (see
+   GalleryApp._startDragScroll) — grab/grabbing cursor, mirrors the
+   affordance a draggable canvas would normally show. */
+body.overview-active:not(.fulltext-active) {
+  cursor: grab;
+}
+
+body.overview-active.is-drag-scrolling {
+  cursor: grabbing;
+}
+
 /* Same "just the grid" chrome-hiding treatment applies to the full-text
    list view (see GalleryApp.toggleViewMode) — .overview-active already
    covers it since that class is kept on for any non-grid mode. */
@@ -262,8 +273,22 @@ body.fulltext-active .fulltext-view {
   display: block;
 }
 
-body.fulltext-active .gallery-canvas-root {
+/* Canvas visibility during full-text mode is driven by JS (see
+   GalleryApp._enterFulltext/_exitFulltextToGrid/_handleFulltextOpen) rather
+   than the body class directly — it needs to stay visible a moment longer
+   while tiles fade out, and reappear early when a project opens from a
+   title so the zoom has something to zoom on. */
+.gallery-canvas-root.is-hidden {
   display: none;
+}
+
+/* Briefly faded out (not fully torn down) while a project opened from a
+   title is zooming in/out, so re-entering full text on close doesn't need
+   to rebuild the list — see GalleryApp._handleFulltextOpen. */
+.fulltext-view.is-hidden-for-project {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
 }
 
 .fulltext-list {
@@ -288,18 +313,30 @@ body.fulltext-active .gallery-canvas-root {
   letter-spacing: -0.01em;
   color: var(--fg);
   cursor: pointer;
-  transition: color 0.25s ease, opacity 0.25s ease;
+  /* Entrance reveal (opacity/transform, per-item transition-delay set
+     inline — see GalleryApp._buildFulltextList) is intentionally on a
+     slower transition than the hover dim/highlight below it. */
+  opacity: 0;
+  transform: translateY(22px);
+  transition: opacity 0.5s ease, transform 0.5s ease;
 }
 
 .fulltext-item:last-child {
   border-bottom: 1px solid rgba(20, 20, 15, 0.12);
 }
 
-.fulltext-list:hover .fulltext-item {
+.fulltext-list.is-revealed .fulltext-item {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.fulltext-list.is-revealed:hover .fulltext-item {
+  transition: opacity 0.25s ease, transform 0.5s ease, color 0.25s ease;
   opacity: 0.32;
 }
 
-.fulltext-item:hover {
+.fulltext-list.is-revealed .fulltext-item:hover {
+  transition: opacity 0.25s ease, transform 0.5s ease, color 0.25s ease;
   opacity: 1;
   color: var(--accent);
 }

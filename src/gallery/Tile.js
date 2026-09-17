@@ -64,6 +64,17 @@ export class Tile {
     this.revealDelay = 0.25 + index * 0.045
     this.revealStart = null
     this.revealDuration = 0.85
+    this._initialRevealDone = false
+
+    // Reusable reveal-progress tween for the grid<->full-text mode switch
+    // (see GalleryApp._enterFulltext/_exitFulltextToGrid): 0 wipes the tile
+    // away top-down, 1 reveals it bottom-up again — the exact same visual
+    // as the one-shot load-in above, just re-triggerable on demand.
+    this._modeRevealTarget = null
+    this._modeRevealFrom = 1
+    this._modeRevealStart = null
+    this._modeRevealDelay = 0
+    this._modeRevealDuration = 0.6
 
     this.video = null
 
@@ -148,6 +159,13 @@ export class Tile {
     this.dimTarget = target
   }
 
+  setModeReveal(target, delay = 0) {
+    this._modeRevealFrom = this.uniforms.uRevealProgress.value
+    this._modeRevealTarget = target
+    this._modeRevealDelay = delay
+    this._modeRevealStart = null
+  }
+
   setVideoPlaying(playing) {
     if (!this.video) return
     if (playing) {
@@ -177,13 +195,34 @@ export class Tile {
     this.uniforms.uHoverStrength.value = this.hoverStrength
     this.uniforms.uDim.value = this.dimCurrent
 
-    if (this.ready && this.uniforms.uRevealProgress.value < 1) {
+    if (this.ready && !this._initialRevealDone) {
       if (this.revealStart === null) this.revealStart = elapsed + this.revealDelay
       const t = (elapsed - this.revealStart) / this.revealDuration
       if (t >= 0) {
         this.mesh.visible = true
         const clamped = Math.min(t, 1)
         this.uniforms.uRevealProgress.value = 1 - Math.pow(1 - clamped, 3)
+        if (clamped >= 1) this._initialRevealDone = true
+      }
+    }
+
+    if (this._modeRevealTarget !== null) {
+      if (this._modeRevealStart === null) this._modeRevealStart = elapsed + this._modeRevealDelay
+      const t = (elapsed - this._modeRevealStart) / this._modeRevealDuration
+      if (t >= 0) {
+        const clamped = Math.min(t, 1)
+        // Ease out (decelerate) revealing back in, ease in (accelerate)
+        // wiping away — reads as "settling in" vs. "dismissed with intent".
+        const eased =
+          this._modeRevealTarget > this._modeRevealFrom
+            ? 1 - Math.pow(1 - clamped, 3)
+            : clamped * clamped * clamped
+        this.uniforms.uRevealProgress.value =
+          this._modeRevealFrom + (this._modeRevealTarget - this._modeRevealFrom) * eased
+        if (clamped >= 1) {
+          this.uniforms.uRevealProgress.value = this._modeRevealTarget
+          this._modeRevealTarget = null
+        }
       }
     }
   }

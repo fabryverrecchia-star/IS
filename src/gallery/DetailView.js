@@ -25,6 +25,7 @@ export class DetailView {
     this.progress = 0
     this.rotSign = 1
     this.onOpenComplete = null
+    this.onCloseComplete = null
 
     this.start = { x: 0, y: 0, z: 0, width: 1, height: 1 }
     this.end = { x: 0, y: 0, z: 0, width: 1, height: 1 }
@@ -236,9 +237,11 @@ export class DetailView {
       } else {
         this.mesh.visible = false
         this.activeTile.mesh.visible = true
+        const closedTile = this.activeTile
         this.activeTile = null
         this.state = 'idle'
         this._unlockScroll()
+        this.onCloseComplete && this.onCloseComplete(closedTile)
       }
     }
   }

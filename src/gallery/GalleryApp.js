@@ -13,6 +13,9 @@ const MAX_LIFT_PX = 16
 const MAX_SCALE_BOOST = 0.028
 const MAX_TILT = 0.085 // radians, ~5deg
 const VIDEO_PLAY_MARGIN = 260 // px beyond viewport edges to start/stop playback
+const MODE_REVEAL_MAX_STAGGER = 0.3 // s, matches the cap in _animateTilesReveal
+const MODE_REVEAL_DURATION = 0.6 // s, matches Tile's _modeRevealDuration
+const MODE_TRANSITION_MS = (MODE_REVEAL_MAX_STAGGER + MODE_REVEAL_DURATION) * 1000
 
 export class GalleryApp {
   constructor(root, { onProgress, onReady } = {}) {
@@ -26,6 +29,10 @@ export class GalleryApp {
     this.readyFired = false
 
     this.viewMode = 'grid' // 'grid' | 'overview' | 'fulltext' (see toggleViewMode)
+    this._dragScroll = null
+    this._dragScrollMoved = false
+    this._modeVisibilityTimer = null
+    this._openedFromFulltext = false
     this.layoutTransition = null
     this.overviewToggle = document.getElementById('overview-toggle')
     this.fulltextView = document.getElementById('fulltext-view')
@@ -62,6 +69,7 @@ export class GalleryApp {
     this._buildLayout(true)
     this.detailView = new DetailView(this)
     this.detailView.onOpenComplete = (tile, rect) => this._handleProjectOpen(tile, rect)
+    this.detailView.onCloseComplete = () => this._handleDetailCloseComplete()
     this.projectPage = new ProjectPage(this, {
       onClose: (tile) => this._handleProjectClose(tile),
     })
@@ -98,6 +106,9 @@ export class GalleryApp {
       btn.className = 'fulltext-item'
       btn.dataset.index = String(index)
       btn.textContent = item.title
+      // Staggered entrance (see .fulltext-list.is-revealed in style.css) —
+      // fixed per item so it doesn't need recomputing on every toggle.
+      btn.style.transitionDelay = `${Math.min(index * 0.035, 0.35)}s`
       this.fulltextList.appendChild(btn)
     })
   }
@@ -184,7 +195,14 @@ export class GalleryApp {
       clearTimeout(this._resizeTimeout)
       this._resizeTimeout = setTimeout(() => this._handleResize(), 150)
     }
-    this._onPointerMove = (e) => this._handlePointerMove(e)
+    this._onPointerMove = (e) => {
+      this._handlePointerMove(e)
+      this._updateDragScroll(e)
+    }
+    this._onPointerDown = (e) => {
+      this._handlePointerMove(e)
+      this._startDragScroll(e)
+    }
     this._onPointerLeave = () => {
       this.mouseActive = false
     }
@@ -195,8 +213,17 @@ export class GalleryApp {
     // cancelled by a scroll) for any non-mouse pointer.
     this._onPointerUp = (e) => {
       if (e.pointerType !== 'mouse') this.mouseActive = false
+      this._endDragScroll()
     }
-    this._onClick = () => this._handleClick()
+    this._onClick = (e) => {
+      // A click that ends a press-and-drag scroll (see _startDragScroll)
+      // shouldn't also open the tile sitting under the cursor.
+      if (this._dragScrollMoved) {
+        this._dragScrollMoved = false
+        return
+      }
+      this._handleClick()
+    }
     this._onOverviewToggle = (e) => {
       e.stopPropagation()
       this.toggleViewMode()
@@ -250,7 +277,7 @@ export class GalleryApp {
 
     window.addEventListener('resize', this._onResize)
     window.addEventListener('pointermove', this._onPointerMove, { passive: true })
-    window.addEventListener('pointerdown', this._onPointerMove, { passive: true })
+    window.addEventListener('pointerdown', this._onPointerDown, { passive: true })
     window.addEventListener('pointerup', this._onPointerUp, { passive: true })
     window.addEventListener('pointercancel', this._onPointerUp, { passive: true })
     window.addEventListener('click', this._onClick)
@@ -281,7 +308,15 @@ export class GalleryApp {
     this.viewMode = mode
     this.overviewToggle.setAttribute('data-mode', mode)
     document.body.classList.toggle('overview-active', mode !== 'grid')
-    document.body.classList.toggle('fulltext-active', mode === 'fulltext')
+  }
+
+  // Staggered per-tile wipe (see Tile.setModeReveal): target 0 hides tiles
+  // top-down for the switch into full text, target 1 reveals them back
+  // bottom-up (the same look as the initial page load-in) coming back.
+  _animateTilesReveal(target) {
+    this.tiles.forEach((tile, i) => {
+      tile.setModeReveal(target, Math.min(i * 0.03, MODE_REVEAL_MAX_STAGGER))
+    })
   }
 
   _enterOverview() {
@@ -301,33 +336,95 @@ export class GalleryApp {
     }
   }
 
+  // Tiles wipe away (top-down) while the title list fades/slides in line by
+  // line on the same beat — the canvas itself stays visible and rendering
+  // until that finishes (see MODE_TRANSITION_MS) so the wipe is seen, then
+  // gets hidden entirely rather than left rendering nothing underneath.
   _enterFulltext() {
     this._setMode('fulltext')
     this.layoutTransition = null
+    clearTimeout(this._modeVisibilityTimer)
+    document.body.classList.add('fulltext-active')
     window.scrollTo(0, 0)
     // The list's own rendered height (its content grows with clamp()'d
     // font sizes) is what should drive the real scrollbar range while
     // it's showing, not whatever the mosaic layout last computed.
     this.spacer.style.height = `${Math.round(this.fulltextView.offsetHeight)}px`
+
+    this._animateTilesReveal(0)
+    // One frame so the list's default (hidden) state actually paints
+    // before .is-revealed flips it — otherwise there's nothing to
+    // transition *from* and the reveal would just snap in instantly.
+    requestAnimationFrame(() => this.fulltextList.classList.add('is-revealed'))
+
+    this._modeVisibilityTimer = setTimeout(() => {
+      if (this.viewMode === 'fulltext') this.canvasRoot.classList.add('is-hidden')
+    }, MODE_TRANSITION_MS)
   }
 
+  // Reverse of the above: canvas reappears immediately and tiles reveal
+  // back in while the title lines fade out; the list's container is only
+  // actually torn down (display: none) once that fade has had time to play.
   _exitFulltextToGrid() {
     this._setMode('grid')
+    clearTimeout(this._modeVisibilityTimer)
     window.scrollTo(0, 0)
+    this.fulltextList.classList.remove('is-revealed')
     this.fulltextList.style.transform = ''
     this.fulltextPreview.classList.remove('is-visible')
     this.fulltextPreviewVideo.pause()
+
+    this.canvasRoot.classList.remove('is-hidden')
     // Tiles were hidden the whole time fulltext was showing, so there's
-    // nothing to tween from — just snap them straight to the grid layout.
+    // nothing to tween position from — snap them straight to the grid
+    // layout, then reveal them back in.
     this._buildLayout(false)
+    this._animateTilesReveal(1)
+
+    this._modeVisibilityTimer = setTimeout(() => {
+      if (this.viewMode !== 'fulltext') document.body.classList.remove('fulltext-active')
+    }, MODE_TRANSITION_MS)
   }
 
+  // Opening a project from a title has no on-screen tile to zoom from, so
+  // the clicked tile is temporarily repositioned to whatever's actually
+  // visible at that moment — the hover-preview thumbnail if one was showing
+  // (the common case on desktop), or the title row itself otherwise (touch,
+  // or a click with no prior hover) — before running the exact same zoom
+  // DetailView already does for a normal grid click. The list is only faded
+  // out, not torn down, and viewMode stays 'fulltext' throughout so closing
+  // (_handleDetailCloseComplete) returns to the list instead of the grid.
   _handleFulltextOpen(index) {
     if (this.detailView.isActive) return
     const tile = this.tiles[index]
     if (!tile) return
-    this._exitFulltextToGrid()
+
+    const itemEl = this.fulltextList.querySelector(`.fulltext-item[data-index="${index}"]`)
+    const previewVisible = this.fulltextPreview.classList.contains('is-visible')
+    const rect = previewVisible ? this.fulltextPreview.getBoundingClientRect() : itemEl.getBoundingClientRect()
+
+    tile.applyCell(
+      { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2, width: rect.width, height: rect.height },
+      this.viewportWidth,
+      this.viewportHeight
+    )
+
+    clearTimeout(this._modeVisibilityTimer)
+    this._openedFromFulltext = true
+    this.fulltextView.classList.add('is-hidden-for-project')
+    this.fulltextPreview.classList.remove('is-visible')
+    this.canvasRoot.classList.remove('is-hidden')
+
     this.detailView.open(tile)
+  }
+
+  // Mirror image of _handleFulltextOpen once the closing zoom lands: hide
+  // the canvas again and bring the (never-torn-down) list back.
+  _handleDetailCloseComplete() {
+    if (!this._openedFromFulltext) return
+    this._openedFromFulltext = false
+    this.canvasRoot.classList.add('is-hidden')
+    this.fulltextView.classList.remove('is-hidden-for-project')
   }
 
   _handleClick() {
@@ -397,6 +494,32 @@ export class GalleryApp {
     this.mouseActive = true
     this.mouseNDC.x = (e.clientX / window.innerWidth) * 2 - 1
     this.mouseNDC.y = -(e.clientY / window.innerHeight) * 2 + 1
+  }
+
+  // Press-and-drag scroll for the scattered overview layout: mouse only
+  // (touch already scrolls natively — dragging there would double up and
+  // fight the browser's own momentum scroll). Dragging follows the same
+  // "grab the page" convention as touch: drag down to move the content
+  // down (i.e. scroll to an earlier point), drag up to scroll further in.
+  _startDragScroll(e) {
+    if (e.pointerType !== 'mouse' || this.viewMode !== 'overview' || this.detailView.isActive) return
+    this._dragScroll = { startClientY: e.clientY, startScrollY: window.scrollY }
+    this._dragScrollMoved = false
+    document.body.classList.add('is-drag-scrolling')
+  }
+
+  _updateDragScroll(e) {
+    if (!this._dragScroll) return
+    const deltaY = e.clientY - this._dragScroll.startClientY
+    if (Math.abs(deltaY) > 4) this._dragScrollMoved = true
+    const maxScroll = document.documentElement.scrollHeight - window.innerHeight
+    window.scrollTo(0, clamp(this._dragScroll.startScrollY - deltaY, 0, Math.max(maxScroll, 0)))
+  }
+
+  _endDragScroll() {
+    if (!this._dragScroll) return
+    this._dragScroll = null
+    document.body.classList.remove('is-drag-scrolling')
   }
 
   start() {
@@ -547,9 +670,10 @@ export class GalleryApp {
   dispose() {
     this.stop()
     clearTimeout(this._resizeTimeout)
+    clearTimeout(this._modeVisibilityTimer)
     window.removeEventListener('resize', this._onResize)
     window.removeEventListener('pointermove', this._onPointerMove)
-    window.removeEventListener('pointerdown', this._onPointerMove)
+    window.removeEventListener('pointerdown', this._onPointerDown)
     window.removeEventListener('pointerup', this._onPointerUp)
     window.removeEventListener('pointercancel', this._onPointerUp)
     window.removeEventListener('click', this._onClick)
