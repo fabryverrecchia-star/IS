@@ -8,9 +8,13 @@ import { loadGsap } from './loadGsap.js'
 // interception running behind the other 3 (plain window-scroll) modes.
 //
 // Unlike the reference demo, clicking a scene's title doesn't open a
-// separate preview grid — it hands off to the site's own ProjectPage (see
+// separate preview grid — it plays the same dramatic carousel-flies-away
+// animation the demo used for that transition, then hands off to the
+// site's own ProjectPage instead of the demo's own grid (see
 // GalleryApp._handleCarousel3DOpen), so there's only one "view a project in
 // full" implementation to maintain.
+const CARDS_PER_SCENE = 4
+
 export class Carousel3DView {
   constructor({ items, onOpenItem }) {
     this.items = items
@@ -25,24 +29,22 @@ export class Carousel3DView {
     this.sceneWrapper = document.getElementById('c3d-scene-wrapper')
 
     this._onTitleClick = (e) => {
-      const title = e.currentTarget
       e.preventDefault()
-      const index = Number(title.dataset.index)
-      this.onOpenItem(this.items[index])
+      this.onOpenItem(Number(e.currentTarget.dataset.index))
     }
   }
 
-  // Picks the images shown as rotating carousel faces for one project: its
-  // own real cover + extra photos when it has them, a single poster frame
-  // for a video project, or just the cover alone when the extras on file
-  // are only the repeated-cover placeholder (see galleryData.js) — 4 copies
-  // of the same photo spinning would just look like a bug, not a feature.
+  // Picks the images shown as the carousel's rotating faces: a project's
+  // own real photos (cover + extras) first, then that same set repeated
+  // in order to fill out a full CARDS_PER_SCENE-card carousel for every
+  // project, even ones with only a single real photo on file (a video's
+  // poster frame, or an image project without its own extras yet).
   _getCardSources(item) {
-    if (item.type === 'video') return [item.poster || item.src]
-    const extras = (item.images || []).map((im) => im.src)
-    const isPlaceholderRepeat = extras.length > 0 && extras.every((src) => src === item.src)
-    const sources = isPlaceholderRepeat ? [item.src] : [item.src, ...extras]
-    return [...new Set(sources)].slice(0, 6)
+    const distinct =
+      item.type === 'video'
+        ? [item.poster || item.src]
+        : [...new Set([item.src, ...(item.images || []).map((im) => im.src)])]
+    return Array.from({ length: CARDS_PER_SCENE }, (_, i) => distinct[i % distinct.length])
   }
 
   _buildDom() {
@@ -63,7 +65,7 @@ export class Carousel3DView {
 
       const carousel = document.createElement('div')
       carousel.className = 'c3d-carousel'
-      carousel._radius = sources.length <= 1 ? 0 : Math.max(420, sources.length * 90)
+      carousel._radius = 420
 
       sources.forEach((src) => {
         const cell = document.createElement('div')
@@ -155,11 +157,25 @@ export class Carousel3DView {
   async enter() {
     const gsap = await loadGsap()
     const { ScrollTrigger, ScrollSmoother, SplitText } = window
+    this._gsap = gsap
+    this._ScrollTrigger = ScrollTrigger
 
     if (!this.built) this._buildDom()
 
     document.body.classList.add('carousel3d-active')
     this.root.setAttribute('aria-hidden', 'false')
+    // Undo whatever a previous playOpenTransition() left behind — the scene
+    // DOM persists across enter/exit cycles, only the scroll-triggered
+    // timelines below are rebuilt fresh. clearProps wipes the inline style
+    // *attribute*, but GSAP still renders transforms from its own per-
+    // property cache on the element (x/y/z/rotationX/Y/Z), not by reading
+    // that attribute back — and the resting scrub timeline below never
+    // touches `z` at all (only the fly-away does), so a stale cached z
+    // would otherwise render forever once anything else nudges the
+    // transform. Reset every property the fly-away actually touches.
+    gsap.set(this.root, { clearProps: 'all' })
+    gsap.set(this.sceneWrapper.querySelectorAll('.c3d-carousel'), { z: 0, rotationX: 0, rotationY: 0, rotationZ: 0 })
+    gsap.set(this.sceneWrapper.querySelectorAll('.c3d-card'), { rotationZ: 0 })
 
     // SplitText re-splits fresh each entry (chars are plain spans, cheap)
     // rather than trying to keep instances alive across a full kill/create
@@ -187,6 +203,42 @@ export class Carousel3DView {
     this.active = true
   }
 
+  // The reference demo's own carousel -> preview-grid transition: scroll
+  // the clicked scene to center screen, fade its title out character by
+  // character, then send the carousel spinning and flying off toward the
+  // camera. Reused as-is for the "open a project" moment even though what
+  // follows is the site's ProjectPage rather than the demo's grid — resolves
+  // once the fly-away finishes so the caller can cut to it right after.
+  playOpenTransition(index) {
+    const gsap = this._gsap
+    const ScrollTrigger = this._ScrollTrigger
+    const scene = this.sceneWrapper.children[index]
+    const carousel = scene.querySelector('.c3d-carousel')
+    const cards = scene.querySelectorAll('.c3d-card')
+    const titleSpan = scene.querySelector('.c3d-scene__title span')
+    const chars = this.splits.find((s) => s.el === titleSpan)?.split.chars || []
+
+    const offsetTop = scene.getBoundingClientRect().top + window.scrollY
+    const targetY = offsetTop - window.innerHeight / 2 + scene.offsetHeight / 2
+
+    ScrollTrigger.getAll().forEach((t) => t.disable(false))
+
+    // Resolves once the view has visibly faded out (~2.2s in) rather than
+    // waiting for the full 3.2s the carousel's fly-away tween keeps running
+    // underneath — that tail end is invisible anyway once the root's opacity
+    // hits 0, so cutting to the project page there avoids a dead blank beat.
+    return new Promise((resolve) => {
+      this._openTimeline = gsap
+        .timeline({ defaults: { duration: 1.5, ease: 'power2.inOut' } })
+        .to(window, { scrollTo: { y: targetY, autoKill: true } }, 0)
+        .to(chars, { autoAlpha: 0, duration: 0.02, ease: 'none', stagger: { each: 0.04, from: 'end' } }, 0)
+        .to(carousel, { rotationX: 90, rotationY: -360, z: -2000 }, 0)
+        .to(carousel, { duration: 2.5, ease: 'power3.inOut', z: 1500, rotationZ: 270 }, 0.7)
+        .to(cards, { rotationZ: 0 }, 0)
+        .to(this.root, { autoAlpha: 0, duration: 0.6, onComplete: resolve }, '<+=1.6')
+    })
+  }
+
   exit() {
     if (!this.active) return
     this.active = false
@@ -194,6 +246,14 @@ export class Carousel3DView {
     this.timelines.forEach((tl) => tl.scrollTrigger && tl.scrollTrigger.kill())
     this.timelines.forEach((tl) => tl.kill())
     this.timelines = []
+
+    // playOpenTransition's fly-away resolves before its own tail end (the
+    // carousel still mid-flight) actually finishes — stop it here rather
+    // than let it keep writing transform values in the background.
+    if (this._openTimeline) {
+      this._openTimeline.kill()
+      this._openTimeline = null
+    }
 
     this.splits.forEach(({ split }) => split.revert())
     this.splits = []

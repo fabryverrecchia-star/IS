@@ -77,7 +77,7 @@ export class GalleryApp {
     })
     this.carousel3D = new Carousel3DView({
       items: this.items,
-      onOpenItem: (item) => this._handleCarousel3DOpen(item),
+      onOpenItem: (index) => this._handleCarousel3DOpen(index),
     })
     this._openedFrom3D = false
     this._bindEvents()
@@ -434,19 +434,31 @@ export class GalleryApp {
   }
 
   // A 3D-carousel scene's title has no WebGL tile behind it at all (canvas
-  // is fully hidden in this mode) — hand off straight to the project page,
-  // passing a plain {item} in place of a real Tile since ProjectPage.open
-  // only ever reads .item off it. The carousel's whole GSAP/ScrollSmoother
-  // world is killed while the project page is up (see Carousel3DView.exit)
-  // rather than merely hidden, since ScrollTrigger's normalizeScroll
-  // otherwise keeps intercepting wheel/touch input globally and would fight
-  // the project page's own scroll container.
-  _handleCarousel3DOpen(item) {
-    if (this.detailView.isActive) return
+  // is fully hidden in this mode) — play the carousel's own dramatic
+  // fly-away first (see Carousel3DView.playOpenTransition, ported from the
+  // reference demo), then hand off to the project page, passing a plain
+  // {item} in place of a real Tile since ProjectPage.open only ever reads
+  // .item off it. The carousel's whole GSAP/ScrollSmoother world is killed
+  // once that finishes (see Carousel3DView.exit) rather than merely hidden,
+  // since ScrollTrigger's normalizeScroll otherwise keeps intercepting
+  // wheel/touch input globally and would fight the project page's own
+  // scroll container.
+  _handleCarousel3DOpen(index) {
+    if (this.detailView.isActive || this._modeSwitching) return
+    const item = this.items[index]
+    if (!item) return
+    // Reuses the toggle's own busy flag: the fly-away runs a couple of
+    // seconds, during which another title click or the mode toggle would
+    // otherwise race it (a second concurrent fly-away, or exiting the view
+    // out from under the animation still playing).
+    this._modeSwitching = true
     this._openedFrom3D = true
-    this.carousel3D.exit()
-    this.projectPage.open({ item }).then(() => {
-      this.projectPage.show()
+    this.carousel3D.playOpenTransition(index).then(() => {
+      this.carousel3D.exit()
+      this.projectPage.open({ item }).then(() => {
+        this.projectPage.show()
+        this._modeSwitching = false
+      })
     })
   }
 
