@@ -61,8 +61,10 @@ export function computeGridLayout(itemCount, viewportWidth, viewportHeight) {
 export function computeOverviewLayout(itemCount, viewportWidth, viewportHeight) {
   const laneCount = viewportWidth >= 1100 ? 4 : viewportWidth >= 700 ? 3 : 2
   const laneWidth = viewportWidth / laneCount
-  const minCellWidth = Math.max(laneWidth * 0.42, 90)
-  const maxCellWidth = Math.max(laneWidth * 0.72, 150)
+  // Cells stay well under half the lane width so neighboring lanes always
+  // leave real air between them, even with jitter pushing tiles apart.
+  const minCellWidth = Math.max(laneWidth * 0.3, 80)
+  const maxCellWidth = Math.max(laneWidth * 0.48, 130)
   const topMargin = Math.max(viewportHeight * 0.08, 64)
   const bottomMargin = Math.max(viewportHeight * 0.12, 100)
   const edgeMargin = 16
@@ -79,7 +81,9 @@ export function computeOverviewLayout(itemCount, viewportWidth, viewportHeight) 
     const jitterRange = Math.max(laneWidth / 2 - cellWidth / 2 - edgeMargin, 0)
     const x = laneCenterX + (Math.random() - 0.5) * 2 * jitterRange
 
-    const gapBefore = 20 + Math.random() * 130
+    // Wide, generous vertical breathing room between consecutive tiles in
+    // the same lane — this is meant to read as loose and airy, not packed.
+    const gapBefore = 90 + Math.random() * 260
     const y = laneCursorY[lane] + gapBefore + cellHeight / 2
     laneCursorY[lane] = y + cellHeight / 2
 
