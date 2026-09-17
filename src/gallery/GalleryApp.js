@@ -169,6 +169,14 @@ export class GalleryApp {
     this._onPointerLeave = () => {
       this.mouseActive = false
     }
+    // Touch has no hover state: a tap fires pointerdown (which flips
+    // mouseActive on, same as a mouse) but never a mouseleave, so on phone
+    // the magnet warp/dim effect was getting stuck on the last-tapped tile
+    // forever. Clear it as soon as the finger lifts (or the touch is
+    // cancelled by a scroll) for any non-mouse pointer.
+    this._onPointerUp = (e) => {
+      if (e.pointerType !== 'mouse') this.mouseActive = false
+    }
     this._onClick = () => this._handleClick()
     this._onOverviewToggle = (e) => {
       e.stopPropagation()
@@ -192,6 +200,8 @@ export class GalleryApp {
     window.addEventListener('resize', this._onResize)
     window.addEventListener('pointermove', this._onPointerMove, { passive: true })
     window.addEventListener('pointerdown', this._onPointerMove, { passive: true })
+    window.addEventListener('pointerup', this._onPointerUp, { passive: true })
+    window.addEventListener('pointercancel', this._onPointerUp, { passive: true })
     window.addEventListener('click', this._onClick)
     document.addEventListener('mouseleave', this._onPointerLeave)
     document.addEventListener('visibilitychange', this._onVisibility)
@@ -257,8 +267,21 @@ export class GalleryApp {
   }
 
   _handleResize() {
-    this.viewportWidth = window.innerWidth
-    this.viewportHeight = window.innerHeight
+    const nextWidth = window.innerWidth
+    const nextHeight = window.innerHeight
+
+    // Mobile Safari/Chrome fire `resize` when their address bar/toolbar
+    // collapses or expands on scroll — the width doesn't change and the
+    // height only moves by the bar's height. Rebuilding the whole layout
+    // on every one of those made the grid jump mid-scroll on phone. Only
+    // react when it's an actual resize: width changed, or height moved by
+    // more than a toolbar-sized amount (covers real orientation changes).
+    const widthChanged = nextWidth !== this.viewportWidth
+    const heightDelta = Math.abs(nextHeight - this.viewportHeight)
+    if (!widthChanged && heightDelta < 150) return
+
+    this.viewportWidth = nextWidth
+    this.viewportHeight = nextHeight
     this._updateCameraFov()
     this.renderer.setSize(this.viewportWidth, this.viewportHeight)
     // Any in-flight layout tween was computed against the old viewport —
@@ -414,6 +437,8 @@ export class GalleryApp {
     window.removeEventListener('resize', this._onResize)
     window.removeEventListener('pointermove', this._onPointerMove)
     window.removeEventListener('pointerdown', this._onPointerMove)
+    window.removeEventListener('pointerup', this._onPointerUp)
+    window.removeEventListener('pointercancel', this._onPointerUp)
     window.removeEventListener('click', this._onClick)
     document.removeEventListener('mouseleave', this._onPointerLeave)
     document.removeEventListener('visibilitychange', this._onVisibility)
