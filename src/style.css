@@ -92,7 +92,7 @@ body.overview-active .scroll-hint {
 /* Press-and-drag scroll hint for the overview layout (see
    GalleryApp._startDragScroll) — grab/grabbing cursor, mirrors the
    affordance a draggable canvas would normally show. */
-body.overview-active:not(.fulltext-active) {
+body.overview-active:not(.fulltext-active):not(.carousel3d-active) {
   cursor: grab;
 }
 
@@ -154,11 +154,15 @@ body.overview-active.is-drag-scrolling {
 }
 
 .overview-toggle[data-mode='grid'] .overview-toggle-icon--grid,
-.overview-toggle[data-mode='fulltext'] .overview-toggle-icon--grid {
+.overview-toggle[data-mode='carousel3d'] .overview-toggle-icon--grid {
   opacity: 1;
 }
 
 .overview-toggle[data-mode='overview'] .overview-toggle-icon--lines {
+  opacity: 1;
+}
+
+.overview-toggle[data-mode='fulltext'] .overview-toggle-icon--cube {
   opacity: 1;
 }
 
@@ -177,16 +181,16 @@ body.overview-active.is-drag-scrolling {
   transition: transform 0.3s cubic-bezier(0.65, 0, 0.35, 1);
 }
 
-.overview-toggle[data-mode='fulltext'] .overview-toggle-icon--grid span:nth-child(1) {
+.overview-toggle[data-mode='carousel3d'] .overview-toggle-icon--grid span:nth-child(1) {
   transform: translate(2px, 2px) scale(0.8);
 }
-.overview-toggle[data-mode='fulltext'] .overview-toggle-icon--grid span:nth-child(2) {
+.overview-toggle[data-mode='carousel3d'] .overview-toggle-icon--grid span:nth-child(2) {
   transform: translate(-2px, 2px) scale(0.8);
 }
-.overview-toggle[data-mode='fulltext'] .overview-toggle-icon--grid span:nth-child(3) {
+.overview-toggle[data-mode='carousel3d'] .overview-toggle-icon--grid span:nth-child(3) {
   transform: translate(2px, -2px) scale(0.8);
 }
-.overview-toggle[data-mode='fulltext'] .overview-toggle-icon--grid span:nth-child(4) {
+.overview-toggle[data-mode='carousel3d'] .overview-toggle-icon--grid span:nth-child(4) {
   transform: translate(-2px, -2px) scale(0.8);
 }
 
@@ -202,6 +206,22 @@ body.overview-active.is-drag-scrolling {
   width: 100%;
   height: 2px;
   background: #000;
+}
+
+/* Small rotated-square (diamond) glyph shown in fulltext mode, hinting
+   "next: the 3D view" — visually distinct from the flat grid/lines icons. */
+.overview-toggle-icon--cube {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.overview-toggle-icon--cube span {
+  display: block;
+  width: 11px;
+  height: 11px;
+  background: #000;
+  transform: rotate(45deg);
 }
 
 .scroll-hint {
@@ -716,5 +736,125 @@ body.fulltext-active .fulltext-view {
 
   .footer-wordmark img {
     width: 94vw;
+  }
+}
+
+/* --- 4th view mode: scroll-driven 3D carousel (GSAP), see Carousel3DView.js ---
+   Adapted from a Codrops "On-Scroll 3D Carousel" demo, data-driven from
+   galleryData.js instead of hardcoded scenes. Fully self-contained: its own
+   fixed wrapper/content (ScrollSmoother owns scrolling only inside this
+   subtree), so it never touches the other 3 modes' window-scroll. Titles
+   open the existing project page directly instead of the demo's own
+   preview grid. */
+.carousel3d-view {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 4;
+}
+
+body.carousel3d-active .carousel3d-view {
+  display: block;
+}
+
+.c3d-wrapper {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+}
+
+.c3d-content {
+  width: 100%;
+}
+
+.c3d-scene {
+  perspective: 900px;
+  position: relative;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.c3d-scene__title {
+  display: block;
+  max-width: 92vw;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: clamp(28px, 4.4vw, 64px);
+  font-weight: 300;
+  letter-spacing: -0.01em;
+  color: var(--fg);
+  top: 84%;
+  position: absolute;
+  z-index: 10;
+  cursor: pointer;
+}
+
+.c3d-scene__title .c3d-char {
+  display: inline-block;
+  transform-style: preserve-3d;
+  transform-origin: 50% 0%;
+}
+
+.c3d-carousel {
+  width: 400px;
+  height: 500px;
+  top: 50%;
+  left: 50%;
+  margin: -250px 0 0 -200px;
+  position: absolute;
+  transform-style: preserve-3d;
+  will-change: transform;
+  transform: translateZ(-550px) rotateY(0deg);
+}
+
+.c3d-scene:nth-child(even) .c3d-carousel {
+  transform: translateZ(-550px) rotateY(45deg);
+}
+
+.c3d-carousel__cell {
+  position: absolute;
+  width: 400px;
+  height: 520px;
+  left: 0;
+  top: 0;
+  transform-style: preserve-3d;
+}
+
+.c3d-card {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  transform-style: preserve-3d;
+}
+
+.c3d-card__face {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  backface-visibility: hidden;
+  background-size: cover;
+  background-position: 50% 50%;
+  border-radius: 4px;
+}
+
+.c3d-card__face--back {
+  transform: rotateY(180deg);
+}
+
+@media (max-width: 700px) {
+  .c3d-carousel {
+    width: 260px;
+    height: 340px;
+    margin: -170px 0 0 -130px;
+  }
+
+  .c3d-carousel__cell {
+    width: 260px;
+    height: 340px;
   }
 }

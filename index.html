@@ -19,6 +19,9 @@
           <span class="overview-toggle-icon overview-toggle-icon--lines">
             <span></span><span></span><span></span>
           </span>
+          <span class="overview-toggle-icon overview-toggle-icon--cube">
+            <span></span>
+          </span>
         </button>
       </header>
 
@@ -36,6 +39,19 @@
     <div class="fulltext-preview" id="fulltext-preview" aria-hidden="true">
       <img class="fulltext-preview-media" id="fulltext-preview-img" alt="" />
       <video class="fulltext-preview-media" id="fulltext-preview-video" muted loop playsinline></video>
+    </div>
+
+    <!-- 4th view mode: scroll-driven 3D carousel per project (GSAP
+         ScrollSmoother/ScrollTrigger/SplitText), fully self-contained with
+         its own fixed wrapper/content so it never fights the WebGL modes'
+         window-scroll — see Carousel3DView.js. Scenes are built at runtime
+         from galleryData.js, not hardcoded here. -->
+    <div class="carousel3d-view" id="carousel3d-view" aria-hidden="true">
+      <div class="c3d-wrapper" id="c3d-wrapper">
+        <div class="c3d-content" id="c3d-content">
+          <div class="c3d-scene-wrapper" id="c3d-scene-wrapper"></div>
+        </div>
+      </div>
     </div>
 
     <div class="project-page" id="project-page">

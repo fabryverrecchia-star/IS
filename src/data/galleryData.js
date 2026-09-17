@@ -55,6 +55,9 @@ const rawItems = [
     // the real uploaded cut (with sound) instead, via fullSrc.
     src: 'media/images/video00-preview.mp4',
     fullSrc: 'media/images/video00.mp4',
+    // Still frame used where a plain image is needed (e.g. the 3D carousel
+    // view's card faces) — a video can't be a CSS background-image.
+    poster: 'media/images/video00-poster.jpg',
     aspect: 1280 / 674,
     title: 'Petals',
     client: '',
@@ -111,6 +114,7 @@ const rawItems = [
     // instead of full-bleed, see heroLayout.js.
     src: 'media/images/video01-preview.mp4',
     fullSrc: 'media/images/video01.mp4',
+    poster: 'media/images/video01-poster.jpg',
     aspect: 720 / 1280,
     title: 'Mirage',
     client: '',

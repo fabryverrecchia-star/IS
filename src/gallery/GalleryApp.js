@@ -4,6 +4,7 @@ import { computeGridLayout, computeOverviewLayout } from './layout.js'
 import { Tile } from './Tile.js'
 import { DetailView } from './DetailView.js'
 import { ProjectPage } from './ProjectPage.js'
+import { Carousel3DView } from './Carousel3DView.js'
 import { clamp, smoothstep, damp, lerp, easeInOutCubic } from './math.js'
 
 const CAMERA_DISTANCE = 1000
@@ -33,6 +34,7 @@ export class GalleryApp {
     this._dragScrollMoved = false
     this._modeVisibilityTimer = null
     this._openedFromFulltext = false
+    this._modeSwitching = false
     this.layoutTransition = null
     this.overviewToggle = document.getElementById('overview-toggle')
     this.fulltextView = document.getElementById('fulltext-view')
@@ -73,6 +75,11 @@ export class GalleryApp {
     this.projectPage = new ProjectPage(this, {
       onClose: (tile) => this._handleProjectClose(tile),
     })
+    this.carousel3D = new Carousel3DView({
+      items: this.items,
+      onOpenItem: (item) => this._handleCarousel3DOpen(item),
+    })
+    this._openedFrom3D = false
     this._bindEvents()
 
     // Safety net so the loader never hangs indefinitely on a slow asset.
@@ -291,17 +298,21 @@ export class GalleryApp {
     this.fulltextList.addEventListener('pointermove', this._onFulltextMove)
   }
 
-  // Cycles the header toggle through the 3 view modes: the curated
+  // Cycles the header toggle through the 4 view modes: the curated
   // max-4-column grid, the scattered "overview" mosaic (computeOverviewLayout),
-  // and the full-text magazine list (see _enterFulltext/_exitFulltextToGrid).
-  // Grid<->overview tween tiles between layouts per-frame in _update();
-  // entering/leaving full text just swaps the WebGL canvas for the DOM list
-  // since the tiles are fully hidden either way, so a snap is unnoticeable.
+  // the full-text magazine list, and the scroll-driven 3D carousel (GSAP,
+  // see Carousel3DView.js) — grid -> overview -> fulltext -> carousel3d ->
+  // grid. Grid<->overview tween tiles between layouts per-frame in
+  // _update(); entering/leaving full text just swaps the WebGL canvas for
+  // the DOM list since the tiles are fully hidden either way, so a snap is
+  // unnoticeable. Entering the 3D carousel lazy-loads GSAP the first time
+  // (see loadGsap.js), so it's the one async step in this cycle.
   toggleViewMode() {
-    if (this.detailView.isActive) return
+    if (this.detailView.isActive || this._modeSwitching) return
     if (this.viewMode === 'grid') this._enterOverview()
     else if (this.viewMode === 'overview') this._enterFulltext()
-    else this._exitFulltextToGrid()
+    else if (this.viewMode === 'fulltext') this._enterCarousel3D()
+    else this._exitCarousel3DToGrid()
   }
 
   _setMode(mode) {
@@ -365,14 +376,24 @@ export class GalleryApp {
   // Reverse of the above: canvas reappears immediately and tiles reveal
   // back in while the title lines fade out; the list's container is only
   // actually torn down (display: none) once that fade has had time to play.
-  _exitFulltextToGrid() {
-    this._setMode('grid')
+  // Tears down fulltext-specific DOM state regardless of what's next (back
+  // to grid, or straight on to the 3D carousel) — the delayed class removal
+  // still only fires once nothing has re-entered fulltext in the meantime.
+  _leaveFulltext() {
     clearTimeout(this._modeVisibilityTimer)
-    window.scrollTo(0, 0)
     this.fulltextList.classList.remove('is-revealed')
     this.fulltextList.style.transform = ''
     this.fulltextPreview.classList.remove('is-visible')
     this.fulltextPreviewVideo.pause()
+    this._modeVisibilityTimer = setTimeout(() => {
+      if (this.viewMode !== 'fulltext') document.body.classList.remove('fulltext-active')
+    }, MODE_TRANSITION_MS)
+  }
+
+  _exitFulltextToGrid() {
+    this._setMode('grid')
+    window.scrollTo(0, 0)
+    this._leaveFulltext()
 
     this.canvasRoot.classList.remove('is-hidden')
     // Tiles were hidden the whole time fulltext was showing, so there's
@@ -380,10 +401,53 @@ export class GalleryApp {
     // layout, then reveal them back in.
     this._buildLayout(false)
     this._animateTilesReveal(1)
+  }
 
-    this._modeVisibilityTimer = setTimeout(() => {
-      if (this.viewMode !== 'fulltext') document.body.classList.remove('fulltext-active')
-    }, MODE_TRANSITION_MS)
+  // Lazy-loads GSAP the first time (see loadGsap.js) and hands off entirely
+  // to Carousel3DView — the WebGL loop is fully stopped rather than just
+  // hidden like full text, since nothing in this mode reads scroll/tilt
+  // from it. Coming from fulltext skips straight past the grid.
+  async _enterCarousel3D() {
+    if (this.viewMode === 'fulltext') this._leaveFulltext()
+    this._setMode('carousel3d')
+    this.layoutTransition = null
+    window.scrollTo(0, 0)
+    this.stop()
+    this.canvasRoot.classList.add('is-hidden')
+
+    this._modeSwitching = true
+    try {
+      await this.carousel3D.enter()
+    } finally {
+      this._modeSwitching = false
+    }
+  }
+
+  _exitCarousel3DToGrid() {
+    this.carousel3D.exit()
+    this._setMode('grid')
+    window.scrollTo(0, 0)
+    this.canvasRoot.classList.remove('is-hidden')
+    this._buildLayout(false)
+    this._animateTilesReveal(1)
+    this.start()
+  }
+
+  // A 3D-carousel scene's title has no WebGL tile behind it at all (canvas
+  // is fully hidden in this mode) — hand off straight to the project page,
+  // passing a plain {item} in place of a real Tile since ProjectPage.open
+  // only ever reads .item off it. The carousel's whole GSAP/ScrollSmoother
+  // world is killed while the project page is up (see Carousel3DView.exit)
+  // rather than merely hidden, since ScrollTrigger's normalizeScroll
+  // otherwise keeps intercepting wheel/touch input globally and would fight
+  // the project page's own scroll container.
+  _handleCarousel3DOpen(item) {
+    if (this.detailView.isActive) return
+    this._openedFrom3D = true
+    this.carousel3D.exit()
+    this.projectPage.open({ item }).then(() => {
+      this.projectPage.show()
+    })
   }
 
   // Opening a project from a title has no on-screen tile to zoom from, so
@@ -428,7 +492,7 @@ export class GalleryApp {
   }
 
   _handleClick() {
-    if (this.viewMode === 'fulltext') return
+    if (this.viewMode === 'fulltext' || this.viewMode === 'carousel3d') return
     if (this.detailView.state !== 'idle') return
     const tile = this.detailView.pick(this.mouseNDC)
     if (tile) this.detailView.open(tile)
@@ -451,6 +515,13 @@ export class GalleryApp {
   }
 
   _handleProjectClose() {
+    // No WebGL tile/zoom was involved in opening this one — just bring the
+    // 3D carousel's GSAP world back (re-created fresh, see Carousel3DView).
+    if (this._openedFrom3D) {
+      this._openedFrom3D = false
+      this.carousel3D.enter()
+      return
+    }
     // Mesh must be visible and positioned *before* the loop resumes —
     // start() renders synchronously, so doing this after it would render
     // one frame with neither the mesh nor the DOM page visible (a flash).
@@ -485,6 +556,10 @@ export class GalleryApp {
       // Tiles stay hidden and wherever they were — only the list's own
       // (now reflowed) height needs to keep driving the scroll range.
       this.spacer.style.height = `${Math.round(this.fulltextView.offsetHeight)}px`
+    } else if (this.viewMode === 'carousel3d') {
+      // Tiles are irrelevant here — GSAP's own ScrollTrigger instances need
+      // their positions/heights recomputed instead.
+      window.ScrollTrigger?.refresh()
     } else {
       this._buildLayout(false)
     }
@@ -686,6 +761,7 @@ export class GalleryApp {
     this.fulltextList.removeEventListener('pointerleave', this._onFulltextLeave)
     this.fulltextList.removeEventListener('pointermove', this._onFulltextMove)
     this.detailView.dispose()
+    this.carousel3D.dispose()
     this.tiles.forEach((t) => t.dispose())
     this.renderer.dispose()
   }
