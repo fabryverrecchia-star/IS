@@ -5,12 +5,18 @@
 // window.ScrollTrigger, etc.), same as the reference demo's own <script>
 // tags — loaded in dependency order since ScrollSmoother/SplitText each
 // register themselves against the already-global gsap on load.
+// Document-relative (no leading "/"), matching every other static asset
+// reference in this project (see vite.config.js's `base: './'`) — the site
+// isn't always served from a domain root (a published Artifact preview
+// lives at some non-root path), where a root-relative "/vendor/..." would
+// point at the wrong origin entirely and silently 404 every one of these
+// <script> tags.
 const SCRIPTS = [
-  '/vendor/gsap/gsap.min.js',
-  '/vendor/gsap/ScrollTrigger.min.js',
-  '/vendor/gsap/ScrollSmoother.min.js',
-  '/vendor/gsap/ScrollToPlugin.min.js',
-  '/vendor/gsap/SplitText.min.js',
+  './vendor/gsap/gsap.min.js',
+  './vendor/gsap/ScrollTrigger.min.js',
+  './vendor/gsap/ScrollSmoother.min.js',
+  './vendor/gsap/ScrollToPlugin.min.js',
+  './vendor/gsap/SplitText.min.js',
 ]
 
 let loadPromise = null
