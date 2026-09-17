@@ -495,9 +495,9 @@ body.overview-active .scroll-hint {
 
 .footer-wordmark img {
   display: block;
-  width: clamp(420px, 74vw, 1200px);
+  width: clamp(340px, 88vw, 1320px);
   height: auto;
-  transform: translateY(4%);
+  transform: translateY(6%);
   pointer-events: none;
 }
 
@@ -511,6 +511,6 @@ body.overview-active .scroll-hint {
   }
 
   .footer-wordmark img {
-    width: 92vw;
+    width: 94vw;
   }
 }
