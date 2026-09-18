@@ -3,17 +3,18 @@ import { vertexShader, fragmentShader } from './shaders.js'
 import { lerp, easeInOutCubic, clamp } from './math.js'
 import { computeHeroLayout } from './heroLayout.js'
 
-const MAX_TURN_ANGLE = 0.45 // radians (~26deg), a flourish during the move only — always 0 at rest
+const LIFT_Z_OFFSET = 80 // world units, a brief "picked up toward camera" flourish — always 0 at rest
 const OPEN_DURATION = 0.7
 const CLOSE_DURATION = 0.55
 
 // Drives the click-to-zoom WebGL transition only: a hero plane that tweens
 // from a clicked tile's exact on-screen transform to a full-bleed, top-
-// aligned banner (and back again), with a brief Y-axis rotation flourish
-// that reads as a page turning. It lives directly in the scene (not the
-// scrolling content group) so it stays put regardless of scroll, and it's
-// built once and reused for every open/close rather than allocated per
-// click. The actual project content (scrolling body, captions, extra
+// aligned banner (and back again), lifting slightly toward the camera
+// mid-move (a brief, subtle zoom-forward flourish, like picking the photo
+// up) before settling flat into place. It lives directly in the scene (not
+// the scrolling content group) so it stays put regardless of scroll, and
+// it's built once and reused for every open/close rather than allocated
+// per click. The actual project content (scrolling body, captions, extra
 // images) is owned by ProjectPage — this class just hands off to it via
 // onOpenComplete once the entrance animation lands, and picks back up for
 // the reverse animation when asked to close().
@@ -23,7 +24,6 @@ export class DetailView {
     this.state = 'idle' // idle | opening | project | closing
     this.activeTile = null
     this.progress = 0
-    this.rotSign = 1
     this.onOpenComplete = null
     this.onCloseComplete = null
 
@@ -108,7 +108,6 @@ export class DetailView {
     this.progress = 0
 
     const worldPos = tile.group.getWorldPosition(new THREE.Vector3())
-    this.rotSign = worldPos.x < 0 ? 1 : -1
 
     this.start.x = worldPos.x
     this.start.y = worldPos.y
@@ -139,7 +138,7 @@ export class DetailView {
 
     tile.mesh.visible = false
     this.mesh.visible = true
-    this._applyTransform(this.start, 0)
+    this._applyTransform(this.start)
 
     this._lockScroll()
   }
@@ -155,7 +154,7 @@ export class DetailView {
   // control can hand back from DOM to WebGL with no visible pop.
   showAtCurrent() {
     this.mesh.visible = true
-    this._applyTransform(this.current, 0)
+    this._applyTransform(this.current)
   }
 
   close() {
@@ -192,9 +191,8 @@ export class DetailView {
     window.removeEventListener('keydown', this._onKeyLock)
   }
 
-  _applyTransform(t, rotY) {
+  _applyTransform(t) {
     this.mesh.position.set(t.x, t.y, t.z)
-    this.mesh.rotation.y = rotY
     this.mesh.scale.set(t.width, t.height, 1)
     this.material.uniforms.uPlaneAspect.value = t.width / t.height
     this.current.x = t.x
@@ -210,18 +208,18 @@ export class DetailView {
     const duration = this.state === 'opening' ? OPEN_DURATION : CLOSE_DURATION
     this.progress = clamp(this.progress + dt / duration, 0, 1)
     const easedT = easeInOutCubic(this.progress)
-    const rotY = Math.sin(this.progress * Math.PI) * this.rotSign * MAX_TURN_ANGLE
+    // Peaks at mid-move and is back to exactly 0 by progress 1, so the end
+    // position (z: 0, the pixel-identical handoff to ProjectPage's DOM) is
+    // never disturbed — only the journey there bulges slightly toward camera.
+    const liftZ = Math.sin(this.progress * Math.PI) * LIFT_Z_OFFSET
 
-    this._applyTransform(
-      {
-        x: lerp(this.start.x, this.end.x, easedT),
-        y: lerp(this.start.y, this.end.y, easedT),
-        z: lerp(this.start.z, this.end.z, easedT),
-        width: lerp(this.start.width, this.end.width, easedT),
-        height: lerp(this.start.height, this.end.height, easedT),
-      },
-      rotY
-    )
+    this._applyTransform({
+      x: lerp(this.start.x, this.end.x, easedT),
+      y: lerp(this.start.y, this.end.y, easedT),
+      z: lerp(this.start.z, this.end.z, easedT) + liftZ,
+      width: lerp(this.start.width, this.end.width, easedT),
+      height: lerp(this.start.height, this.end.height, easedT),
+    })
 
     if (this.progress >= 1) {
       if (this.state === 'opening') {
