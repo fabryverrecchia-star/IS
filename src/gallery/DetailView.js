@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { vertexShader, fragmentShader } from './shaders.js'
-import { lerp, easeOutExpo, easeInOutCubic, clamp } from './math.js'
+import { lerp, easeInOutCubic, clamp } from './math.js'
 import { computeHeroLayout } from './heroLayout.js'
 
 const MAX_TURN_ANGLE = 0.45 // radians (~26deg), a flourish during the move only — always 0 at rest
@@ -209,8 +209,7 @@ export class DetailView {
 
     const duration = this.state === 'opening' ? OPEN_DURATION : CLOSE_DURATION
     this.progress = clamp(this.progress + dt / duration, 0, 1)
-    const easedT =
-      this.state === 'opening' ? easeOutExpo(this.progress) : easeInOutCubic(this.progress)
+    const easedT = easeInOutCubic(this.progress)
     const rotY = Math.sin(this.progress * Math.PI) * this.rotSign * MAX_TURN_ANGLE
 
     this._applyTransform(
