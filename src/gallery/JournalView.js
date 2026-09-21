@@ -1,6 +1,7 @@
 import { clamp } from './math.js'
 
 const PARALLAX_RANGE = 24 // px, the image's total pan headroom on hover — kept light
+const FADE_DISTANCE = 320 // px — how far a card travels in from the right edge before it's fully opaque
 
 // "Journal" strip: a plain DOM section (no WebGL) sitting in normal document
 // flow right after the main gallery, before the footer — a demo news/updates
@@ -17,18 +18,21 @@ const PARALLAX_RANGE = 24 // px, the image's total pan headroom on hover — kep
 // on trackpad/mouse/touch as any other scroll.
 //
 // Each card also has a light hover parallax (the image pans a few px against
-// the cursor within its own frame) and opens a click-through detail panel —
-// photo full-bleed at 70% width on the left, classic project info in an
-// editorial, lined layout on the right 30% (see openDetail below).
+// the cursor within its own frame), fades in as it travels in from the right
+// edge of the viewport while scrolling, and opens a click-through detail
+// panel — a horizontally-scrollable showcase of that entry's own photos on
+// the left, classic project info fixed on the right (see openDetail below).
 export class JournalView {
   constructor({ items, root }) {
     this.items = items
     this.root = root
     this.track = root.querySelector('.journal-track')
+    this.cardEls = []
+    this.cardOffsets = []
     this.maxTranslate = 0
 
     this.detail = document.getElementById('journal-detail')
-    this.detailImg = document.getElementById('journal-detail-img')
+    this.detailMedia = document.getElementById('journal-detail-media')
     this.detailTitle = document.getElementById('journal-detail-title')
     this.detailClient = document.getElementById('journal-detail-client')
     this.detailYear = document.getElementById('journal-detail-year')
@@ -51,6 +55,17 @@ export class JournalView {
     }
     this.detailClose.addEventListener('click', this._onDetailClose)
     document.addEventListener('keydown', this._onKeydown)
+
+    // Lets an ordinary vertical wheel/trackpad gesture drive the showcase's
+    // horizontal scroll too — without this, seeing "the rest" needs a
+    // horizontal-specific gesture (shift+wheel, a trackpad swipe), which
+    // isn't obvious for a pane that only scrolls sideways.
+    this._onDetailWheel = (e) => {
+      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return
+      e.preventDefault()
+      this.detailMedia.scrollLeft += e.deltaY
+    }
+    this.detailMedia.addEventListener('wheel', this._onDetailWheel, { passive: false })
   }
 
   _buildDom() {
@@ -76,6 +91,7 @@ export class JournalView {
       this._bindParallax(media, img)
 
       this.track.appendChild(card)
+      this.cardEls.push(card)
     })
   }
 
@@ -98,8 +114,16 @@ export class JournalView {
   }
 
   openDetail(item) {
-    this.detailImg.src = item.src
-    this.detailImg.alt = item.title
+    this.detailMedia.innerHTML = ''
+    const gallery = item.gallery && item.gallery.length ? item.gallery : [{ src: item.src }]
+    gallery.forEach((photo) => {
+      const img = document.createElement('img')
+      img.src = photo.src
+      img.alt = item.title
+      this.detailMedia.appendChild(img)
+    })
+    this.detailMedia.scrollLeft = 0
+
     this.detailTitle.textContent = item.title
     this.detailClient.textContent = item.client || '—'
     this.detailYear.textContent = item.year || '—'
@@ -130,6 +154,11 @@ export class JournalView {
     requestAnimationFrame(() => {
       this.maxTranslate = Math.max(this.track.scrollWidth - window.innerWidth, 0)
       this.root.style.height = `${Math.round(window.innerHeight + this.maxTranslate)}px`
+      // Cached once layout has settled at the new size — read as plain
+      // numbers in update() below instead of a getBoundingClientRect() per
+      // card per frame, since offsetLeft/offsetWidth don't change once the
+      // track itself isn't being resized (only its transform moves).
+      this.cardOffsets = this.cardEls.map((el) => ({ left: el.offsetLeft, width: el.offsetWidth }))
     })
   }
 
@@ -143,7 +172,20 @@ export class JournalView {
     const scrollable = rect.height - window.innerHeight
     if (scrollable <= 0) return
     const progress = clamp(-rect.top / scrollable, 0, 1)
-    this.track.style.transform = `translate3d(${-progress * this.maxTranslate}px, 0, 0)`
+    const translateX = -progress * this.maxTranslate
+    this.track.style.transform = `translate3d(${translateX}px, 0, 0)`
+
+    // Fade a card in as it travels in from the right edge of the viewport —
+    // instead of popping to full opacity the instant it crosses the edge.
+    // Position is derived from the cached layout offset + this frame's
+    // translateX rather than a live rect read, so no extra reflow per card.
+    const viewportWidth = window.innerWidth
+    this.cardEls.forEach((card, i) => {
+      const offset = this.cardOffsets[i]
+      if (!offset) return
+      const left = offset.left + translateX
+      card.style.opacity = clamp((viewportWidth - left) / FADE_DISTANCE, 0, 1)
+    })
   }
 
   dispose() {
@@ -151,5 +193,6 @@ export class JournalView {
     window.removeEventListener('resize', this._onResize)
     this.detailClose.removeEventListener('click', this._onDetailClose)
     document.removeEventListener('keydown', this._onKeydown)
+    this.detailMedia.removeEventListener('wheel', this._onDetailWheel)
   }
 }

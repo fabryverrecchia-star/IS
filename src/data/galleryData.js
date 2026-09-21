@@ -170,9 +170,13 @@ export const galleryItems = rawItems.map((item) =>
 // project10A/project11 despite being unused extras — both have a magazine
 // masthead baked into the source frame that crops awkwardly into a 4:3 box.
 // client/year/category/description are classic-project-page placeholder
-// info for the click-through detail panel (see JournalView._openDetail) —
-// swap all of this for real news/update entries once there's something to
-// announce.
+// info for the click-through detail panel (see JournalView.openDetail);
+// `gallery` is that panel's own horizontally-scrollable showcase — each
+// entry's own cover plus a couple more images (deliberately mixed aspect
+// ratios, borrowed from elsewhere since this is a demo) so there's real
+// "scroll to see the rest" content, sized by their own real proportions,
+// not cropped like the card itself. Swap all of this for real news/update
+// entries once there's something to announce.
 export const journalItems = [
   {
     src: 'media/images/img62.jpg',
@@ -182,6 +186,11 @@ export const journalItems = [
     category: 'Photographie',
     description:
       'Une série studio autour de la matière et de la lumière dure, pensée comme un carnet de recherche entre deux commandes éditoriales.',
+    gallery: [
+      { src: 'media/images/img62.jpg', aspect: 1708 / 2560 },
+      { src: 'media/images/img49.jpg', aspect: 1024 / 1280 },
+      { src: 'media/images/video00-poster.jpg', aspect: 1280 / 674 },
+    ],
   },
   {
     src: 'media/images/img63.jpg',
@@ -191,6 +200,11 @@ export const journalItems = [
     category: 'Behind the scenes',
     description:
       'Coulisses du tournage Bazaar Arabia — mise en lumière, essais silhouette et polaroids avant la prise finale.',
+    gallery: [
+      { src: 'media/images/img63.jpg', aspect: 1708 / 2560 },
+      { src: 'media/images/project00.jpg', aspect: 1440 / 1800 },
+      { src: 'media/images/img27.jpg', aspect: 1920 / 2560 },
+    ],
   },
   {
     src: 'media/images/img64.jpg',
@@ -200,6 +214,11 @@ export const journalItems = [
     category: 'À paraître',
     description:
       'Un aperçu de la prochaine collaboration avec Vanity Teen, entre portrait et mode, à paraître dans le prochain numéro.',
+    gallery: [
+      { src: 'media/images/img64.jpg', aspect: 2048 / 2560 },
+      { src: 'media/images/img61.jpg', aspect: 1708 / 2560 },
+      { src: 'media/images/video01-poster.jpg', aspect: 720 / 1280 },
+    ],
   },
   {
     src: 'media/images/project08.jpg',
@@ -209,6 +228,11 @@ export const journalItems = [
     category: 'Direction artistique',
     description:
       'Direction artistique complète d’une campagne Weston — casting, décor et post-production, en collaboration avec le studio.',
+    gallery: [
+      { src: 'media/images/project08.jpg', aspect: 1080 / 1440 },
+      { src: 'media/images/img3.jpg', aspect: 1080 / 1349 },
+      { src: 'media/images/project01.jpg', aspect: 1440 / 1920 },
+    ],
   },
   {
     src: 'media/images/project09.jpg',
@@ -218,6 +242,11 @@ export const journalItems = [
     category: 'Film',
     description:
       'Premières images du tournage vidéo qui accompagne la campagne Weston, tourné en parallèle de la série photo.',
+    gallery: [
+      { src: 'media/images/project09.jpg', aspect: 1440 / 1920 },
+      { src: 'media/images/project07.jpg', aspect: 1440 / 1920 },
+      { src: 'media/images/video00-poster.jpg', aspect: 1280 / 674 },
+    ],
   },
   {
     src: 'media/images/img37.jpg',
@@ -227,5 +256,10 @@ export const journalItems = [
     category: 'Photographie',
     description:
       'Nouvelle série personnelle explorant la suspension et le mouvement — un prolongement naturel du travail éditorial en cours.',
+    gallery: [
+      { src: 'media/images/img37.jpg', aspect: 1707 / 2560 },
+      { src: 'media/images/project10.jpg', aspect: 1170 / 1463 },
+      { src: 'media/images/video01-poster.jpg', aspect: 720 / 1280 },
+    ],
   },
 ]

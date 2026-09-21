@@ -76,16 +76,17 @@
       </div>
     </section>
 
-    <!-- Click-through detail for a Journal card: the photo full-bleed on
-         the left (70% width), classic project info justified on the right
-         (30%) — a distinct, lighter panel from the real project page (see
+    <!-- Click-through detail for a Journal card: a horizontally-scrollable
+         showcase of that entry's own photos (mixed aspect ratios, no crop)
+         on the left (70% width), classic project info justified on the
+         right (30%, fixed — doesn't move as the showcase scrolls) — a
+         distinct, lighter panel from the real project page (see
          ProjectPage.js), fitting for demo "journal" entries rather than a
-         full case study. -->
+         full case study. Opens by widening the showcase first, then
+         fading the info in (see JournalView.openDetail / style.css). -->
     <div class="journal-detail" id="journal-detail" aria-hidden="true">
       <button class="journal-detail-close" id="journal-detail-close" type="button" aria-label="Fermer">✕</button>
-      <div class="journal-detail-media">
-        <img id="journal-detail-img" alt="" />
-      </div>
+      <div class="journal-detail-media" id="journal-detail-media"></div>
       <div class="journal-detail-info">
         <div class="journal-detail-info-inner">
           <span class="journal-detail-eyebrow">Journal</span>
