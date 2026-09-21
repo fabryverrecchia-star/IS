@@ -1,6 +1,6 @@
 import './style.css'
 import { GalleryApp } from './gallery/GalleryApp.js'
-import { computeGridLayout } from './gallery/layout.js'
+import { computeGalleryLayout } from './gallery/layout.js'
 import { galleryItems } from './data/galleryData.js'
 
 const app = document.getElementById('app')
@@ -40,10 +40,11 @@ function computeScatterLayout(count, viewportWidth, viewportHeight) {
 
 const loaderTiles = [...loaderStage.children]
 const scatterPositions = computeScatterLayout(loaderTiles.length, window.innerWidth, window.innerHeight)
-// The real first two grid rows, in the real grid order — this is what the
-// scattered preview grows into once loading finishes, so the reveal reads
-// as the preview becoming the mosaic rather than a cut between them.
-const realLayout = computeGridLayout(galleryItems.length, window.innerWidth, window.innerHeight)
+// The real gallery's own first 8 cell positions, in the real gallery order —
+// this is what the scattered preview grows into once loading finishes, so
+// the reveal reads as the preview becoming the gallery rather than a cut
+// between them.
+const realLayout = computeGalleryLayout(galleryItems, window.innerWidth, window.innerHeight)
 
 function placeTile(tile, cell) {
   tile.style.left = `${cell.x - cell.width / 2}px`

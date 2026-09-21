@@ -74,10 +74,10 @@ body {
   transition: opacity 0.3s ease;
 }
 
-/* Overview and full-text modes are meant to read as just the grid/list —
+/* Full-text and 3D modes are meant to read as just the list/carousel —
    logo, subtitle, scroll hint and footer all step out of the way while
    either is active (see GalleryApp.toggleViewMode, which toggles this
-   class on <body> for any non-grid mode). */
+   class on <body> for any non-gallery mode). */
 body.overview-active .site-mark,
 body.overview-active .site-subtitle {
   opacity: 0;
@@ -89,20 +89,17 @@ body.overview-active .scroll-hint {
   display: none;
 }
 
-/* Press-and-drag scroll hint for the overview layout (see
+/* Press-and-drag scroll hint for the gallery layout (see
    GalleryApp._startDragScroll) — grab/grabbing cursor, mirrors the
-   affordance a draggable canvas would normally show. */
-body.overview-active:not(.fulltext-active):not(.carousel3d-active) {
+   affordance a draggable canvas would normally show. .overview-active is
+   only ever set for full-text/3D, so :not() here isolates the gallery. */
+body:not(.overview-active) {
   cursor: grab;
 }
 
-body.overview-active.is-drag-scrolling {
+body.is-drag-scrolling {
   cursor: grabbing;
 }
-
-/* Same "just the grid" chrome-hiding treatment applies to the full-text
-   list view (see GalleryApp.toggleViewMode) — .overview-active already
-   covers it since that class is kept on for any non-grid mode. */
 
 .site-subtitle {
   font-size: 12px;
@@ -111,10 +108,10 @@ body.overview-active.is-drag-scrolling {
   transition: opacity 0.3s ease;
 }
 
-/* View-mode toggle — cycles grid -> overview -> full-text -> grid (see
+/* View-mode toggle — cycles gallery -> full-text -> 3D -> gallery (see
    GalleryApp.toggleViewMode). Icon shown reflects the current mode: the
-   2x2 squares in grid and full-text mode (both "click me for a mosaic
-   view"), the 3 lines only while in overview mode (next click: full text). */
+   2x2 squares (normal) in gallery mode, the same squares pulled together
+   in 3D mode, the small rotated diamond in full-text mode. */
 .overview-toggle {
   /* Safari draws native button chrome (background/border/min-size) over
      anything here unless appearance is explicitly reset — without this
@@ -158,10 +155,6 @@ body.overview-active.is-drag-scrolling {
   opacity: 1;
 }
 
-.overview-toggle[data-mode='overview'] .overview-toggle-icon--lines {
-  opacity: 1;
-}
-
 .overview-toggle[data-mode='fulltext'] .overview-toggle-icon--cube {
   opacity: 1;
 }
@@ -194,22 +187,8 @@ body.overview-active.is-drag-scrolling {
   transform: translate(-2px, -2px) scale(0.8);
 }
 
-.overview-toggle-icon--lines {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: 2px 0;
-}
-
-.overview-toggle-icon--lines span {
-  display: block;
-  width: 100%;
-  height: 2px;
-  background: #000;
-}
-
-/* Small rotated-square (diamond) glyph shown in fulltext mode, hinting
-   "next: the 3D view" — visually distinct from the flat grid/lines icons. */
+/* Small rotated-square (diamond) glyph shown in fulltext mode — visually
+   distinct from the flat grid icon. */
 .overview-toggle-icon--cube {
   display: flex;
   align-items: center;
@@ -271,13 +250,13 @@ body.overview-active.is-drag-scrolling {
   opacity: 0;
 }
 
-/* --- full-text project list (3rd view mode, see GalleryApp.toggleViewMode) ---
-   A plain DOM magazine-style index: large titles only, the mosaic canvas
+/* --- full-text project list (2nd view mode, see GalleryApp.toggleViewMode) ---
+   A plain DOM magazine-style index: large titles only, the gallery canvas
    hidden behind it. Sits in normal document flow (position: absolute, not
    fixed) so the same window-scroll + spacer-height mechanism that drives
-   the WebGL grid/overview layouts scrolls this too, and the shared tilt
-   value computed each frame in GalleryApp._update is applied to it the
-   same way — same "mood", just on lettering instead of tiles. */
+   the WebGL gallery layout scrolls this too, and the shared tilt value
+   computed each frame in GalleryApp._update is applied to it the same
+   way — same "mood", just on lettering instead of tiles. */
 .fulltext-view {
   display: none;
   position: absolute;
@@ -561,8 +540,8 @@ body.fulltext-active .fulltext-view {
    part. Each one instead reveals its own content with a bottom-to-top
    wipe, on an independent timer unrelated to real load progress (just an
    entrance flourish), then — once loading actually finishes — grows
-   from its scattered spot into the real mosaic's actual cell positions
-   (computeGridLayout) and straightens out, so the reveal reads as the
+   from its scattered spot into the real gallery's actual cell positions
+   (computeGalleryLayout) and straightens out, so the reveal reads as the
    preview scaling up into the page rather than a cut between them.
    Random z-index per tile (set in main.js) interleaves some tiles in
    front of and some behind the centered wordmark for a layered,

@@ -1,5 +1,5 @@
-// Pure layout math: turns a viewport width + item count into a responsive
-// grid definition. Hard-capped at 4 columns per the design brief.
+// Pure layout math: turns the gallery items + a viewport size into a
+// responsive layout. Hard-capped at 4 columns per the design brief.
 
 export function getColumnCount(viewportWidth) {
   if (viewportWidth >= 1100) return 4
@@ -8,98 +8,52 @@ export function getColumnCount(viewportWidth) {
   return 1
 }
 
-// Cell height is derived from width via a fixed ratio so the grid stays a
-// clean, even rhythm regardless of each item's native media aspect ratio
-// (tiles crop with object-fit: cover in the shader).
-const CELL_RATIO = 1.2 // height = width * CELL_RATIO
-
-export function computeGridLayout(itemCount, viewportWidth, viewportHeight) {
+// The single gallery layout: a mix between a tidy aligned grid and a loose
+// disordered mosaic. Columns stay clean, fixed-width lanes (the "ordered"
+// half), but each item's height comes straight from its own source file's
+// aspect ratio rather than a uniform cell ratio, and items are dropped into
+// whichever column is currently shortest (classic masonry placement) — so
+// row baselines drift and stagger on their own from the real mix of
+// portrait/landscape photos (the "disordered" half), without any random
+// jitter. Cell aspect always matches the image's own aspect ratio exactly,
+// so the tile shader's cover-fit math (see shaders.js) never has anything
+// to crop — proportions are preserved as-is.
+export function computeGalleryLayout(items, viewportWidth, viewportHeight) {
   const columns = getColumnCount(viewportWidth)
-  const rows = Math.ceil(itemCount / columns)
 
   const sideMargin = viewportWidth >= 820 ? viewportWidth * 0.06 : 20
   const gutter = viewportWidth >= 820 ? 28 : 16
 
   const usableWidth = viewportWidth - sideMargin * 2 - gutter * (columns - 1)
   const cellWidth = usableWidth / columns
-  const cellHeight = cellWidth * CELL_RATIO
 
   const topMargin = Math.max(viewportHeight * 0.14, 90)
   const bottomMargin = Math.max(viewportHeight * 0.18, 120)
 
-  const totalHeight =
-    topMargin + rows * cellHeight + (rows - 1) * gutter + bottomMargin
-
+  const columnBottoms = new Array(columns).fill(topMargin)
   const positions = []
-  for (let i = 0; i < itemCount; i++) {
-    const col = i % columns
-    const row = Math.floor(i / columns)
+
+  items.forEach((item) => {
+    let col = 0
+    for (let c = 1; c < columns; c++) {
+      if (columnBottoms[c] < columnBottoms[col]) col = c
+    }
+
+    const cellHeight = cellWidth / item.aspect
     const x = sideMargin + col * (cellWidth + gutter) + cellWidth / 2
-    const y = topMargin + row * (cellHeight + gutter) + cellHeight / 2
-    positions.push({ x, y, width: cellWidth, height: cellHeight, row, col })
-  }
+    const y = columnBottoms[col] + cellHeight / 2
+
+    positions.push({ x, y, width: cellWidth, height: cellHeight, col })
+    columnBottoms[col] = y + cellHeight / 2 + gutter
+  })
+
+  const totalHeight = Math.max(...columnBottoms) - gutter + bottomMargin
 
   return {
     columns,
-    rows,
     cellWidth,
-    cellHeight,
     gutter,
     sideMargin,
-    topMargin,
-    totalHeight,
-    positions,
-  }
-}
-
-// An intentionally *un*-aligned alternate layout for the overview toggle:
-// tiles fall into a handful of loose vertical lanes (left/center/right/…),
-// each running independently at its own pace with randomized size and
-// gaps — a scattered, editorial collage rather than a tidy grid, and
-// (unlike the old dense-grid version) explicitly meant to run long and
-// scroll, not fit on one screen.
-export function computeOverviewLayout(itemCount, viewportWidth, viewportHeight) {
-  const laneCount = viewportWidth >= 1100 ? 4 : viewportWidth >= 700 ? 3 : 2
-  const laneWidth = viewportWidth / laneCount
-  // Cells stay well under half the lane width so neighboring lanes always
-  // leave real air between them, even with jitter pushing tiles apart.
-  const minCellWidth = Math.max(laneWidth * 0.3, 80)
-  const maxCellWidth = Math.max(laneWidth * 0.48, 130)
-  const topMargin = Math.max(viewportHeight * 0.08, 64)
-  const bottomMargin = Math.max(viewportHeight * 0.12, 100)
-  const edgeMargin = 16
-
-  const laneCursorY = new Array(laneCount).fill(topMargin)
-  const positions = []
-
-  for (let i = 0; i < itemCount; i++) {
-    const lane = i % laneCount
-    const cellWidth = minCellWidth + Math.random() * (maxCellWidth - minCellWidth)
-    const cellHeight = cellWidth * (0.85 + Math.random() * 0.75)
-
-    const laneCenterX = laneWidth * lane + laneWidth / 2
-    const jitterRange = Math.max(laneWidth / 2 - cellWidth / 2 - edgeMargin, 0)
-    const x = laneCenterX + (Math.random() - 0.5) * 2 * jitterRange
-
-    // Wide, generous vertical breathing room between consecutive tiles in
-    // the same lane — this is meant to read as loose and airy, not packed.
-    const gapBefore = 90 + Math.random() * 260
-    const y = laneCursorY[lane] + gapBefore + cellHeight / 2
-    laneCursorY[lane] = y + cellHeight / 2
-
-    positions.push({ x, y, width: cellWidth, height: cellHeight })
-  }
-
-  const totalHeight = Math.max(...laneCursorY) + bottomMargin
-  const avgCellWidth = (minCellWidth + maxCellWidth) / 2
-
-  return {
-    columns: laneCount,
-    rows: Math.ceil(itemCount / laneCount),
-    cellWidth: avgCellWidth,
-    cellHeight: avgCellWidth * CELL_RATIO,
-    gutter: 0,
-    sideMargin: edgeMargin,
     topMargin,
     totalHeight,
     positions,

@@ -1,11 +1,11 @@
 import * as THREE from 'three'
 import { galleryItems } from '../data/galleryData.js'
-import { computeGridLayout, computeOverviewLayout } from './layout.js'
+import { computeGalleryLayout } from './layout.js'
 import { Tile } from './Tile.js'
 import { DetailView } from './DetailView.js'
 import { ProjectPage } from './ProjectPage.js'
 import { Carousel3DView } from './Carousel3DView.js'
-import { clamp, smoothstep, damp, lerp, easeInOutCubic } from './math.js'
+import { clamp, smoothstep, damp } from './math.js'
 
 const CAMERA_DISTANCE = 1000
 const MAGNET_RADIUS_FACTOR = 0.7 // multiple of cell width, kept close to the hovered tile
@@ -29,13 +29,12 @@ export class GalleryApp {
     this.loadedCount = 0
     this.readyFired = false
 
-    this.viewMode = 'grid' // 'grid' | 'overview' | 'fulltext' (see toggleViewMode)
+    this.viewMode = 'grid' // 'grid' (the hybrid gallery) | 'fulltext' | 'carousel3d'
     this._dragScroll = null
     this._dragScrollMoved = false
     this._modeVisibilityTimer = null
     this._openedFromFulltext = false
     this._modeSwitching = false
-    this.layoutTransition = null
     this.overviewToggle = document.getElementById('overview-toggle')
     this.fulltextView = document.getElementById('fulltext-view')
     this.fulltextList = document.getElementById('fulltext-list')
@@ -157,8 +156,7 @@ export class GalleryApp {
   }
 
   _buildLayout(initial) {
-    const layoutFn = this.viewMode === 'overview' ? computeOverviewLayout : computeGridLayout
-    this.layout = layoutFn(this.items.length, this.viewportWidth, this.viewportHeight)
+    this.layout = computeGalleryLayout(this.items, this.viewportWidth, this.viewportHeight)
     this.spacer.style.height = `${Math.round(this.layout.totalHeight)}px`
 
     if (initial) {
@@ -298,19 +296,18 @@ export class GalleryApp {
     this.fulltextList.addEventListener('pointermove', this._onFulltextMove)
   }
 
-  // Cycles the header toggle through the 4 view modes: the curated
-  // max-4-column grid, the scattered "overview" mosaic (computeOverviewLayout),
-  // the full-text magazine list, and the scroll-driven 3D carousel (GSAP,
-  // see Carousel3DView.js) — grid -> overview -> fulltext -> carousel3d ->
-  // grid. Grid<->overview tween tiles between layouts per-frame in
-  // _update(); entering/leaving full text just swaps the WebGL canvas for
-  // the DOM list since the tiles are fully hidden either way, so a snap is
-  // unnoticeable. Entering the 3D carousel lazy-loads GSAP the first time
-  // (see loadGsap.js), so it's the one async step in this cycle.
+  // Cycles the header toggle through the 3 view modes: the hybrid gallery
+  // (computeGalleryLayout — a mix of aligned columns and masonry-packed,
+  // proportion-true cell heights), the full-text magazine list, and the
+  // scroll-driven 3D carousel (GSAP, see Carousel3DView.js) — gallery ->
+  // fulltext -> carousel3d -> gallery. Entering/leaving full text just
+  // swaps the WebGL canvas for the DOM list since the tiles are fully
+  // hidden either way, so a snap is unnoticeable. Entering the 3D carousel
+  // lazy-loads GSAP the first time (see loadGsap.js), so it's the one
+  // async step in this cycle.
   toggleViewMode() {
     if (this.detailView.isActive || this._modeSwitching) return
-    if (this.viewMode === 'grid') this._enterOverview()
-    else if (this.viewMode === 'overview') this._enterFulltext()
+    if (this.viewMode === 'grid') this._enterFulltext()
     else if (this.viewMode === 'fulltext') this._enterCarousel3D()
     else this._exitCarousel3DToGrid()
   }
@@ -330,30 +327,12 @@ export class GalleryApp {
     })
   }
 
-  _enterOverview() {
-    this._setMode('overview')
-    const newLayout = computeOverviewLayout(this.items.length, this.viewportWidth, this.viewportHeight)
-    const fromCells = this.tiles.map((tile) => ({ ...tile.cell }))
-
-    this.layout = newLayout
-    this.spacer.style.height = `${Math.round(newLayout.totalHeight)}px`
-    window.scrollTo(0, 0)
-
-    this.layoutTransition = {
-      fromCells,
-      toCells: newLayout.positions,
-      elapsed: 0,
-      duration: 0.85,
-    }
-  }
-
   // Tiles wipe away (top-down) while the title list fades/slides in line by
   // line on the same beat — the canvas itself stays visible and rendering
   // until that finishes (see MODE_TRANSITION_MS) so the wipe is seen, then
   // gets hidden entirely rather than left rendering nothing underneath.
   _enterFulltext() {
     this._setMode('fulltext')
-    this.layoutTransition = null
     clearTimeout(this._modeVisibilityTimer)
     document.body.classList.add('fulltext-active')
     window.scrollTo(0, 0)
@@ -410,7 +389,6 @@ export class GalleryApp {
   async _enterCarousel3D() {
     if (this.viewMode === 'fulltext') this._leaveFulltext()
     this._setMode('carousel3d')
-    this.layoutTransition = null
     window.scrollTo(0, 0)
     this.stop()
     this.canvasRoot.classList.add('is-hidden')
@@ -560,9 +538,6 @@ export class GalleryApp {
     this.viewportHeight = nextHeight
     this._updateCameraFov()
     this.renderer.setSize(this.viewportWidth, this.viewportHeight)
-    // Any in-flight layout tween was computed against the old viewport —
-    // drop it and let _buildLayout snap tiles straight to the new one.
-    this.layoutTransition = null
 
     if (this.viewMode === 'fulltext') {
       // Tiles stay hidden and wherever they were — only the list's own
@@ -586,13 +561,13 @@ export class GalleryApp {
     this.mouseNDC.y = -(e.clientY / window.innerHeight) * 2 + 1
   }
 
-  // Press-and-drag scroll for the scattered overview layout: mouse only
-  // (touch already scrolls natively — dragging there would double up and
-  // fight the browser's own momentum scroll). Dragging follows the same
-  // "grab the page" convention as touch: drag down to move the content
-  // down (i.e. scroll to an earlier point), drag up to scroll further in.
+  // Press-and-drag scroll for the gallery layout: mouse only (touch already
+  // scrolls natively — dragging there would double up and fight the
+  // browser's own momentum scroll). Dragging follows the same "grab the
+  // page" convention as touch: drag down to move the content down (i.e.
+  // scroll to an earlier point), drag up to scroll further in.
   _startDragScroll(e) {
-    if (e.pointerType !== 'mouse' || this.viewMode !== 'overview' || this.detailView.isActive) return
+    if (e.pointerType !== 'mouse' || this.viewMode !== 'grid' || this.detailView.isActive) return
     this._dragScroll = { startClientY: e.clientY, startScrollY: window.scrollY }
     this._dragScrollMoved = false
     document.body.classList.add('is-drag-scrolling')
@@ -653,27 +628,6 @@ export class GalleryApp {
       this.fulltextList.style.transform = `rotateX(${this.tiltCurrent}rad)`
     }
 
-    // --- overview toggle: tween tiles between the two layouts ---
-    if (this.layoutTransition) {
-      const t = this.layoutTransition
-      t.elapsed += dt
-      const eased = easeInOutCubic(clamp(t.elapsed / t.duration, 0, 1))
-      this.tiles.forEach((tile, i) => {
-        const a = t.fromCells[i]
-        const b = t.toCells[i]
-        tile.applyCell(
-          {
-            x: lerp(a.x, b.x, eased),
-            y: lerp(a.y, b.y, eased),
-            width: lerp(a.width, b.width, eased),
-            height: lerp(a.height, b.height, eased),
-          },
-          this.viewportWidth,
-          this.viewportHeight
-        )
-      })
-      if (t.elapsed >= t.duration) this.layoutTransition = null
-    }
 
     const speedFactor = clamp(Math.abs(velocity) * 0.00006, 0, 0.035)
     const targetScale = 1 - speedFactor
@@ -688,7 +642,7 @@ export class GalleryApp {
     // that's in flight rather than chase a moving target. Also skip while
     // the full-text list covers the (hidden) tiles entirely.
     const fulltextActive = this.viewMode === 'fulltext'
-    const magnetSuppressed = detailActive || fulltextActive || !!this.layoutTransition
+    const magnetSuppressed = detailActive || fulltextActive
 
     // --- mouse -> world -> content-local ---
     if (this.mouseActive && !magnetSuppressed) {

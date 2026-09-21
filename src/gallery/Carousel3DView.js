@@ -1,6 +1,6 @@
 import { loadGsap } from './loadGsap.js'
 
-// 4th view mode: a scroll-driven 3D carousel per project, adapted from a
+// 3rd view mode: a scroll-driven 3D carousel per project, adapted from a
 // Codrops "On-Scroll 3D Carousel" demo (GSAP ScrollSmoother/ScrollTrigger/
 // SplitText). Fully self-contained — its own fixed wrapper/content that
 // ScrollSmoother owns while active, created fresh on every entry and fully
