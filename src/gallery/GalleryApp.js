@@ -1,10 +1,11 @@
 import * as THREE from 'three'
-import { galleryItems } from '../data/galleryData.js'
+import { galleryItems, journalItems } from '../data/galleryData.js'
 import { computeGalleryLayout } from './layout.js'
 import { Tile } from './Tile.js'
 import { DetailView } from './DetailView.js'
 import { ProjectPage } from './ProjectPage.js'
 import { Carousel3DView } from './Carousel3DView.js'
+import { JournalView } from './JournalView.js'
 import { clamp, smoothstep, damp } from './math.js'
 
 const CAMERA_DISTANCE = 1000
@@ -79,6 +80,7 @@ export class GalleryApp {
       onOpenItem: (index) => this._handleCarousel3DOpen(index),
     })
     this._openedFrom3D = false
+    this.journal = new JournalView({ items: journalItems, root: document.getElementById('journal') })
     this._bindEvents()
 
     // Safety net so the loader never hangs indefinitely on a slow asset.
@@ -626,8 +628,12 @@ export class GalleryApp {
     // tilt value, just applied as a CSS transform on the title list instead.
     if (this.viewMode === 'fulltext') {
       this.fulltextList.style.transform = `rotateX(${this.tiltCurrent}rad)`
+    } else if (this.viewMode === 'grid') {
+      // The journal strip only sits in normal document flow below the
+      // gallery in this mode (hidden via CSS the other two) — updating it
+      // elsewhere would just read a detached/zero-size rect.
+      this.journal.update()
     }
-
 
     const speedFactor = clamp(Math.abs(velocity) * 0.00006, 0, 0.035)
     const targetScale = 1 - speedFactor
@@ -731,6 +737,7 @@ export class GalleryApp {
     this.fulltextList.removeEventListener('pointermove', this._onFulltextMove)
     this.detailView.dispose()
     this.carousel3D.dispose()
+    this.journal.dispose()
     this.tiles.forEach((t) => t.dispose())
     this.renderer.dispose()
   }

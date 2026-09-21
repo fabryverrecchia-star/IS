@@ -162,3 +162,19 @@ export const galleryItems = rawItems.map((item) =>
         images: [item, item, item, item].map(({ src, aspect }) => ({ src, aspect })),
       }
 )
+
+// DEMO ONLY: the "Journal" horizontal strip below the main gallery (see
+// JournalView.js) — reuses existing photos already on disk (mostly each
+// project's own `images` extras, not otherwise shown as a cover) so the
+// section has real, distinct content without needing new assets. Skips
+// project10A/project11 despite being unused extras — both have a magazine
+// masthead baked into the source frame that crops awkwardly into a 4:3 box.
+// Swap in real news/update entries here once there's something to announce.
+export const journalItems = [
+  { src: 'media/images/img62.jpg', title: 'Nouveau shooting — Studio' },
+  { src: 'media/images/img63.jpg', title: 'Backstage' },
+  { src: 'media/images/img64.jpg', title: 'Prochain numéro' },
+  { src: 'media/images/project08.jpg', title: 'Direction artistique' },
+  { src: 'media/images/project09.jpg', title: 'En tournage' },
+  { src: 'media/images/img37.jpg', title: 'Nouvelle série' },
+]

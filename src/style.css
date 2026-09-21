@@ -17,7 +17,13 @@ body {
   background: var(--bg);
   color: var(--fg);
   font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-  overflow-x: hidden;
+  /* clip, not hidden — `overflow-x: hidden` forces the UA to compute
+     overflow-y as `auto` on the same element (the spec's "no visible +
+     non-visible axis mix" fixup), and an ancestor with overflow-y:auto
+     breaks position:sticky for any descendant (see .journal-sticky) even
+     though nothing here actually scrolls independently. `clip` suppresses
+     horizontal overflow the same way without that side effect. */
+  overflow-x: clip;
 }
 
 #app {
@@ -85,7 +91,8 @@ body.overview-active .site-subtitle {
 }
 
 body.overview-active .site-footer,
-body.overview-active .scroll-hint {
+body.overview-active .scroll-hint,
+body.overview-active .journal {
   display: none;
 }
 
@@ -637,6 +644,80 @@ body.fulltext-active .fulltext-view {
 
 .loader-stage.is-growing ~ .loader-wordmark {
   opacity: 0;
+}
+
+/* --- journal strip (demo "news" section, see JournalView.js) ---
+   Sits in normal document flow below the gallery (z-index above the fixed
+   WebGL canvas, same trick as .site-footer). .journal-sticky pins for
+   exactly the track's horizontal overflow — its height is set from JS once
+   the track's real scrollWidth is known — then un-pins once the last card
+   has scrolled fully into view, handing scroll back to the page. */
+.journal {
+  position: relative;
+  z-index: 2;
+  background: var(--bg);
+}
+
+.journal-heading {
+  margin: 0;
+  padding: clamp(64px, 12vw, 140px) clamp(20px, 6vw, 64px) clamp(32px, 6vw, 64px);
+  font-size: clamp(28px, 4.4vw, 52px);
+  font-weight: 300;
+  letter-spacing: -0.01em;
+  color: var(--fg);
+}
+
+.journal-sticky {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  /* Explicit opaque background — this pinned box sits directly over the
+     fixed WebGL canvas (see .gallery-canvas-root), and the track doesn't
+     fill it edge to edge (vertical letterboxing above/below the centered
+     cards, gaps before images load), so without its own background any of
+     that space would show the canvas straight through. */
+  background: var(--bg);
+}
+
+.journal-track {
+  display: flex;
+  align-items: flex-start;
+  gap: clamp(28px, 4vw, 56px);
+  padding: 0 clamp(20px, 6vw, 64px);
+  will-change: transform;
+}
+
+.journal-card {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: var(--journal-card-width, 60vh);
+}
+
+.journal-card-media {
+  width: var(--journal-card-width, 60vh);
+  height: var(--journal-card-height, 45vh);
+  overflow: hidden;
+  background: #eee;
+}
+
+.journal-card-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.journal-card-title {
+  margin: 0;
+  font-size: clamp(14px, 1.3vw, 18px);
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  color: var(--fg);
 }
 
 /* --- magazine footer --- */
