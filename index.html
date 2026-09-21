@@ -76,6 +76,39 @@
       </div>
     </section>
 
+    <!-- Click-through detail for a Journal card: the photo full-bleed on
+         the left (70% width), classic project info justified on the right
+         (30%) — a distinct, lighter panel from the real project page (see
+         ProjectPage.js), fitting for demo "journal" entries rather than a
+         full case study. -->
+    <div class="journal-detail" id="journal-detail" aria-hidden="true">
+      <button class="journal-detail-close" id="journal-detail-close" type="button" aria-label="Fermer">✕</button>
+      <div class="journal-detail-media">
+        <img id="journal-detail-img" alt="" />
+      </div>
+      <div class="journal-detail-info">
+        <div class="journal-detail-info-inner">
+          <span class="journal-detail-eyebrow">Journal</span>
+          <h2 class="journal-detail-title" id="journal-detail-title"></h2>
+          <dl class="journal-detail-meta">
+            <div class="journal-detail-row">
+              <dt>Client</dt>
+              <dd id="journal-detail-client"></dd>
+            </div>
+            <div class="journal-detail-row">
+              <dt>Année</dt>
+              <dd id="journal-detail-year"></dd>
+            </div>
+            <div class="journal-detail-row">
+              <dt>Catégorie</dt>
+              <dd id="journal-detail-category"></dd>
+            </div>
+          </dl>
+          <p class="journal-detail-desc" id="journal-detail-desc"></p>
+        </div>
+      </div>
+    </div>
+
     <footer class="site-footer">
       <nav class="footer-nav">
         <a href="#app">Selected Works</a>

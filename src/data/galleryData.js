@@ -169,12 +169,63 @@ export const galleryItems = rawItems.map((item) =>
 // section has real, distinct content without needing new assets. Skips
 // project10A/project11 despite being unused extras — both have a magazine
 // masthead baked into the source frame that crops awkwardly into a 4:3 box.
-// Swap in real news/update entries here once there's something to announce.
+// client/year/category/description are classic-project-page placeholder
+// info for the click-through detail panel (see JournalView._openDetail) —
+// swap all of this for real news/update entries once there's something to
+// announce.
 export const journalItems = [
-  { src: 'media/images/img62.jpg', title: 'Nouveau shooting — Studio' },
-  { src: 'media/images/img63.jpg', title: 'Backstage' },
-  { src: 'media/images/img64.jpg', title: 'Prochain numéro' },
-  { src: 'media/images/project08.jpg', title: 'Direction artistique' },
-  { src: 'media/images/project09.jpg', title: 'En tournage' },
-  { src: 'media/images/img37.jpg', title: 'Nouvelle série' },
+  {
+    src: 'media/images/img62.jpg',
+    title: 'Nouveau shooting — Studio',
+    client: 'Self-initiated',
+    year: '2026',
+    category: 'Photographie',
+    description:
+      'Une série studio autour de la matière et de la lumière dure, pensée comme un carnet de recherche entre deux commandes éditoriales.',
+  },
+  {
+    src: 'media/images/img63.jpg',
+    title: 'Backstage',
+    client: 'Harper’s Bazaar Arabia',
+    year: '2026',
+    category: 'Behind the scenes',
+    description:
+      'Coulisses du tournage Bazaar Arabia — mise en lumière, essais silhouette et polaroids avant la prise finale.',
+  },
+  {
+    src: 'media/images/img64.jpg',
+    title: 'Prochain numéro',
+    client: 'Vanity Teen',
+    year: '2026',
+    category: 'À paraître',
+    description:
+      'Un aperçu de la prochaine collaboration avec Vanity Teen, entre portrait et mode, à paraître dans le prochain numéro.',
+  },
+  {
+    src: 'media/images/project08.jpg',
+    title: 'Direction artistique',
+    client: 'Weston',
+    year: '2026',
+    category: 'Direction artistique',
+    description:
+      'Direction artistique complète d’une campagne Weston — casting, décor et post-production, en collaboration avec le studio.',
+  },
+  {
+    src: 'media/images/project09.jpg',
+    title: 'En tournage',
+    client: 'Weston',
+    year: '2026',
+    category: 'Film',
+    description:
+      'Premières images du tournage vidéo qui accompagne la campagne Weston, tourné en parallèle de la série photo.',
+  },
+  {
+    src: 'media/images/img37.jpg',
+    title: 'Nouvelle série',
+    client: 'Self-initiated',
+    year: '2026',
+    category: 'Photographie',
+    description:
+      'Nouvelle série personnelle explorant la suspension et le mouvement — un prolongement naturel du travail éditorial en cours.',
+  },
 ]

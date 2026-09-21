@@ -1,5 +1,7 @@
 import { clamp } from './math.js'
 
+const PARALLAX_RANGE = 24 // px, the image's total pan headroom on hover — kept light
+
 // "Journal" strip: a plain DOM section (no WebGL) sitting in normal document
 // flow right after the main gallery, before the footer — a demo news/updates
 // section reusing existing photos (see journalItems in galleryData.js). All
@@ -13,12 +15,26 @@ import { clamp } from './math.js'
 // range is exhausted the section un-pins and normal vertical scroll carries
 // on to the footer — no preventDefault, no wheel listener, works the same
 // on trackpad/mouse/touch as any other scroll.
+//
+// Each card also has a light hover parallax (the image pans a few px against
+// the cursor within its own frame) and opens a click-through detail panel —
+// photo full-bleed at 70% width on the left, classic project info in an
+// editorial, lined layout on the right 30% (see openDetail below).
 export class JournalView {
   constructor({ items, root }) {
     this.items = items
     this.root = root
     this.track = root.querySelector('.journal-track')
     this.maxTranslate = 0
+
+    this.detail = document.getElementById('journal-detail')
+    this.detailImg = document.getElementById('journal-detail-img')
+    this.detailTitle = document.getElementById('journal-detail-title')
+    this.detailClient = document.getElementById('journal-detail-client')
+    this.detailYear = document.getElementById('journal-detail-year')
+    this.detailCategory = document.getElementById('journal-detail-category')
+    this.detailDesc = document.getElementById('journal-detail-desc')
+    this.detailClose = document.getElementById('journal-detail-close')
 
     this._buildDom()
 
@@ -28,6 +44,13 @@ export class JournalView {
     }
     window.addEventListener('resize', this._onResize)
     this._recomputeSize()
+
+    this._onDetailClose = () => this.closeDetail()
+    this._onKeydown = (e) => {
+      if (e.key === 'Escape') this.closeDetail()
+    }
+    this.detailClose.addEventListener('click', this._onDetailClose)
+    document.addEventListener('keydown', this._onKeydown)
   }
 
   _buildDom() {
@@ -49,8 +72,49 @@ export class JournalView {
 
       card.appendChild(media)
       card.appendChild(title)
+      card.addEventListener('click', () => this.openDetail(item))
+      this._bindParallax(media, img)
+
       this.track.appendChild(card)
     })
+  }
+
+  // Pans the image a few px opposite the cursor within its own frame — the
+  // resting `scale(1.08)` in CSS leaves enough headroom that panning never
+  // reveals an empty edge. Cheap enough per card (a rect read + a transform)
+  // to bind directly rather than routing through the main render loop.
+  _bindParallax(media, img) {
+    const onMove = (e) => {
+      const rect = media.getBoundingClientRect()
+      const px = (e.clientX - rect.left) / rect.width - 0.5
+      const py = (e.clientY - rect.top) / rect.height - 0.5
+      img.style.transform = `translate3d(${-px * PARALLAX_RANGE}px, ${-py * PARALLAX_RANGE}px, 0) scale(1.08)`
+    }
+    const onLeave = () => {
+      img.style.transform = 'translate3d(0, 0, 0) scale(1.08)'
+    }
+    media.addEventListener('pointermove', onMove)
+    media.addEventListener('pointerleave', onLeave)
+  }
+
+  openDetail(item) {
+    this.detailImg.src = item.src
+    this.detailImg.alt = item.title
+    this.detailTitle.textContent = item.title
+    this.detailClient.textContent = item.client || '—'
+    this.detailYear.textContent = item.year || '—'
+    this.detailCategory.textContent = item.category || '—'
+    this.detailDesc.textContent = item.description || ''
+    this.detail.classList.add('is-open')
+    this.detail.setAttribute('aria-hidden', 'false')
+    document.body.classList.add('journal-detail-open')
+  }
+
+  closeDetail() {
+    if (!this.detail.classList.contains('is-open')) return
+    this.detail.classList.remove('is-open')
+    this.detail.setAttribute('aria-hidden', 'true')
+    document.body.classList.remove('journal-detail-open')
   }
 
   _recomputeSize() {
@@ -85,5 +149,7 @@ export class JournalView {
   dispose() {
     clearTimeout(this._resizeTimeout)
     window.removeEventListener('resize', this._onResize)
+    this.detailClose.removeEventListener('click', this._onDetailClose)
+    document.removeEventListener('keydown', this._onKeydown)
   }
 }
