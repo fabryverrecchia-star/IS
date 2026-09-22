@@ -35,18 +35,30 @@ const LANDSCAPE_SPAN_THRESHOLD = 1.2
 // aspect always matches the image's own aspect ratio exactly, so the tile
 // shader's cover-fit math (see shaders.js) never has anything to crop —
 // proportions are preserved as-is.
+// Thumbs sized down 20% from the base grid below, with rowGap/gutter
+// shrinking the same amount ("... et de consequence l'espacement") and the
+// freed horizontal width folded back into the side margins so the grid
+// stays centered instead of just drifting left and leaving a gap on the
+// right — a smaller, denser cluster framed by more breathing room, not a
+// shifted one.
+const THUMB_SCALE = 0.8
+
 export function computeGalleryLayout(items, viewportWidth, viewportHeight) {
   const columns = getColumnCount(viewportWidth)
 
-  const sideMargin = viewportWidth >= 820 ? viewportWidth * 0.07 : 24
-  const gutter = viewportWidth >= 820 ? 32 : 16
+  const sideMarginBase = viewportWidth >= 820 ? viewportWidth * 0.07 : 24
+  const gutterBase = viewportWidth >= 820 ? 32 : 16
   // Leaves just enough room under each tile for its title (see
   // GalleryApp's tile label layer) plus a little breathing space before
   // the next row — tighter than the gutter since it doesn't need to fit text.
-  const rowGap = viewportWidth >= 820 ? 48 : 30
+  const rowGapBase = viewportWidth >= 820 ? 48 : 30
 
-  const usableWidth = viewportWidth - sideMargin * 2 - gutter * (columns - 1)
-  const columnWidth = usableWidth / columns
+  const gutter = gutterBase * THUMB_SCALE
+  const rowGap = rowGapBase * THUMB_SCALE
+
+  const usableWidthBase = viewportWidth - sideMarginBase * 2 - gutterBase * (columns - 1)
+  const columnWidth = (usableWidthBase / columns) * THUMB_SCALE
+  const sideMargin = sideMarginBase + (usableWidthBase - (columnWidth * columns + gutter * (columns - 1))) / 2
 
   const topMargin = Math.max(viewportHeight * 0.16, 100)
   const bottomMargin = Math.max(viewportHeight * 0.2, 130)
