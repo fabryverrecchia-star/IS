@@ -81,12 +81,14 @@ export class Tile {
     if (item.type === 'image') {
       textureLoader.load(item.src, (tex) => {
         tex.colorSpace = THREE.SRGBColorSpace
-        // Mipmapped minification (rather than a flat LinearFilter) matches
-        // how the DOM <img> on the project page downsamples the same
-        // source — without it, minifying a large photo into a small tile
-        // aliases and reads as harsher/more contrasty than the original.
-        tex.minFilter = THREE.LinearMipmapLinearFilter
-        tex.generateMipmaps = true
+        // Plain bilinear sampling, no mipmap chain — mipmapping was tried
+        // here to avoid aliasing on minified tiles, but the extra blur pass
+        // it does at every mip level softens fine detail and reads as a
+        // washed-out filter next to the crisp, unfiltered source (visible
+        // once the same photo opens full-size). Renders should always match
+        // the original file's own colors/contrast/sharpness exactly.
+        tex.minFilter = THREE.LinearFilter
+        tex.generateMipmaps = false
         this.uniforms.uMap.value = tex
         this.ready = true
         onAssetReady && onAssetReady(this)

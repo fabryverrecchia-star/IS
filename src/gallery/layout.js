@@ -48,7 +48,12 @@ export function computeGalleryLayout(items, viewportWidth, viewportHeight) {
   const topMargin = Math.max(viewportHeight * 0.16, 100)
   const bottomMargin = Math.max(viewportHeight * 0.2, 130)
 
-  const columnBottoms = new Array(columns).fill(topMargin)
+  // Columns start a little staggered rather than all flush on one exact
+  // line — otherwise the very first row is the one place the "controlled
+  // disorder" never actually shows (every item after it inherits whatever
+  // stagger its column has already picked up from height differences, but
+  // the top row has none yet to inherit).
+  const columnBottoms = Array.from({ length: columns }, (_, c) => topMargin + seededRandom(c * 91.345) * rowGap * 1.5)
   const positions = []
 
   items.forEach((item, index) => {
