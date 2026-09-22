@@ -1,7 +1,7 @@
 import { clamp } from './math.js'
 
 const PARALLAX_RANGE = 24 // px, the image's total pan headroom on hover — kept light
-const REVEAL_DISTANCE = 340 // px — how far a card travels in from the right edge before it's fully revealed
+const REVEAL_DISTANCE = 720 // px — how far a card travels in from the right edge before it's fully revealed
 const LABEL_FADE_DISTANCE = 220 // px — how close the first card gets to the label before it's fully faded out
 
 // "Journal" strip: a plain DOM section (no WebGL) sitting in normal document
