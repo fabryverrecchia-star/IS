@@ -39,11 +39,8 @@ export function computeGalleryLayout(items, viewportWidth, viewportHeight) {
   const columns = getColumnCount(viewportWidth)
 
   const sideMargin = viewportWidth >= 820 ? viewportWidth * 0.07 : 24
-  const gutter = viewportWidth >= 820 ? 32 : 16
-  // Leaves just enough room under each tile for its title (see
-  // GalleryApp's tile label layer) plus a little breathing space before
-  // the next row — tighter than the gutter since it doesn't need to fit text.
-  const rowGap = viewportWidth >= 820 ? 48 : 30
+  const gutter = viewportWidth >= 820 ? 40 : 22
+  const rowGap = viewportWidth >= 820 ? 52 : 28
 
   const usableWidth = viewportWidth - sideMargin * 2 - gutter * (columns - 1)
   const columnWidth = usableWidth / columns
