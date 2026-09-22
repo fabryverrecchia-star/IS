@@ -17,14 +17,15 @@ function waitForHeroReady(el, type) {
   })
 }
 
-// Owns the real project page shown after the WebGL entrance transition
-// lands: the same split as the Journal detail panel (see JournalView.js) —
-// a full-height media pane on the left 75% (the clicked cover, crop-fit to
-// land pixel-identical on the WebGL hero it replaces, then any extra
-// images/screenshots as a horizontally-scrollable filmstrip) and a fixed
-// info panel on the right 25%. Kept deliberately as regular DOM/CSS rather
-// than more WebGL — it's the simplest robust way to get the filmstrip's
-// native scroll, and it never has to touch the gallery's own render loop.
+// Owns the real, scrollable project page shown after the WebGL entrance
+// transition lands: only the hero borrows the Journal detail panel's
+// proportions (a full-height, crop-fit cover on the left 75%, landing
+// pixel-identical on the WebGL hero it replaces, with a fixed info panel
+// on the right 25%) — everything else is the original page, a normal
+// vertically-scrolling document with any extra images stacked below the
+// hero. Kept deliberately as regular DOM/CSS rather than more WebGL —
+// it's the simplest robust way to get real page scrolling and parallax,
+// and it never has to touch the gallery's own render loop.
 export class ProjectPage {
   constructor(app, { onClose } = {}) {
     this.app = app
@@ -45,27 +46,18 @@ export class ProjectPage {
       this.close()
     })
 
-    // Lets an ordinary vertical wheel/trackpad gesture drive the media
-    // pane's horizontal scroll too — same technique as the Journal detail
-    // panel (see JournalView._onDetailWheel).
-    this._onMediaWheel = (e) => {
-      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return
-      e.preventDefault()
-      this.media.scrollLeft += e.deltaY
-    }
-    this.media.addEventListener('wheel', this._onMediaWheel, { passive: false })
+    this._onScroll = () => this._updateParallax()
+    this.root.addEventListener('scroll', this._onScroll, { passive: true })
   }
 
   get isOpen() {
     return this.tile !== null
   }
 
-  // The media pane's own layout (position:fixed, width:75%, height:100% —
-  // see style.css) already reproduces the WebGL hero's final rect exactly,
-  // and the hero slide inside it is sized to the pane itself (flex-basis
-  // 100%) rather than the image's own aspect ratio, cropping the same way
-  // the tile shader's cover-fit UVs do — so no per-item layout math is
-  // needed here any more to keep the hand-off pixel-identical.
+  // The hero is sized to the viewport itself (not its own aspect ratio)
+  // and crop-fit (see .project-hero-media), matching the tile shader's
+  // cover-fit UVs so the WebGL -> DOM hand-off is pixel-identical — no
+  // per-item layout math needed here for that part any more.
   open(tile) {
     const item = tile.item
     this.tile = tile
@@ -118,20 +110,22 @@ export class ProjectPage {
     this.media.appendChild(heroEl)
     this._heroReady = waitForHeroReady(heroEl, item.type)
 
-    // Extra images/screenshots join the same filmstrip, uncropped at their
-    // own natural width (real "images tailles différentes" side by side) —
-    // exactly the Journal detail panel's technique.
+    // Extra images/screenshots stack below the hero in normal page flow,
+    // full width of the media column, uncropped at their own aspect ratio.
     const extras = item.type === 'video' ? item.screenshots : item.images
     ;(extras || []).forEach((extra) => {
+      const wrap = document.createElement('div')
+      wrap.className = 'project-extra'
       const img = document.createElement('img')
       img.src = extra.src
       img.alt = ''
       img.loading = 'lazy'
       img.className = 'project-extra-media'
-      this.media.appendChild(img)
+      wrap.appendChild(img)
+      this.media.appendChild(wrap)
     })
 
-    this.media.scrollLeft = 0
+    this.root.scrollTop = 0
     // Caller shows the page (see `show()`) only once this resolves — the
     // WebGL hero stays on screen until the DOM one actually has a frame
     // to paint, so the swap is a hard cut between two identical-looking
@@ -156,5 +150,18 @@ export class ProjectPage {
     const tile = this.tile
     this.tile = null
     this.onClose(tile)
+  }
+
+  _updateParallax() {
+    const vh = window.innerHeight
+    this.media.querySelectorAll('.project-extra-media').forEach((img) => {
+      const rect = img.getBoundingClientRect()
+      const center = rect.top + rect.height / 2
+      const offset = (center - vh / 2) * -0.16
+      // The image is scaled up (see .project-extra-media) so this shift
+      // never uncovers empty space at the top/bottom of its overflow:
+      // hidden wrap (.project-extra).
+      img.style.transform = `scale(1.18) translateY(${offset}px)`
+    })
   }
 }

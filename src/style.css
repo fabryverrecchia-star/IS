@@ -410,18 +410,21 @@ body.fulltext-active .fulltext-view {
 }
 
 /* --- project page (shown after the entrance zoom) ---
-   Same split as the Journal detail panel (.journal-detail): a full-height
-   media pane on the left 75% (crop-fit hero, then any extra images as a
-   horizontally-scrollable filmstrip) and a fixed info panel on the right
-   25% — see heroLayout.js for why the WebGL zoom already lands exactly
-   here, and ProjectPage.js for how the DOM hand-off matches it. */
+   Only the hero itself borrows the Journal detail panel's proportions — a
+   full-height, crop-fit cover on the left 75% (see heroLayout.js for why
+   the WebGL zoom already lands exactly here) — with a fixed info panel on
+   the right 25%. Everything else stays the original page: a normal
+   vertically-scrolling document, hero at the top, any extra images
+   stacked below it at their own natural size. The Journal's horizontal
+   filmstrip scroll is that section's own thing, not this one's. */
 
 .project-page {
   position: fixed;
   inset: 0;
   z-index: 30;
   background: var(--bg);
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
@@ -457,36 +460,36 @@ body.fulltext-active .fulltext-view {
 }
 
 .project-media {
-  position: fixed;
-  left: 0;
-  top: 0;
   width: 75%;
-  height: 100%;
-  overflow-x: auto;
-  overflow-y: hidden;
-  display: flex;
   background: #eee;
 }
 
-/* The clicked cover: sized to the pane itself (not its own aspect ratio)
-   and crop-fit, matching the tile shader's cover-fit UVs so the WebGL ->
-   DOM hand-off is pixel-identical. */
+/* The clicked cover: sized to the viewport itself (not its own aspect
+   ratio) and crop-fit, matching the tile shader's cover-fit UVs so the
+   WebGL -> DOM hand-off is pixel-identical. Fixed to 100vh rather than a
+   percentage since .project-media is back in normal document flow (its
+   own height now just follows its content, hero + extras stacked). */
 .project-hero-media {
-  flex: 0 0 100%;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
   display: block;
+  width: 100%;
+  height: 100vh;
+  object-fit: cover;
 }
 
-/* Extra images/screenshots: real "images tailles différentes" side by
-   side, own natural (uncropped) width — same filmstrip technique as
-   .journal-detail-media img. */
+/* Extra images/screenshots: normal page scroll below the hero, own
+   natural (uncropped) proportions, with the same subtle scroll parallax
+   the original project page had (see ProjectPage._updateParallax). */
+.project-extra {
+  margin-top: clamp(32px, 5vw, 64px);
+  overflow: hidden;
+}
+
 .project-extra-media {
-  flex: 0 0 auto;
-  height: 100%;
-  width: auto;
   display: block;
+  width: 100%;
+  height: auto;
+  transform: scale(1.18);
+  will-change: transform;
 }
 
 .project-info {
@@ -552,20 +555,15 @@ body.fulltext-active .fulltext-view {
 
 @media (max-width: 700px) {
   .project-media {
-    left: 0;
-    right: 0;
-    top: 0;
     width: 100%;
-    height: 42vh;
   }
 
+  /* No room for a persistent side panel on a phone — falls back into the
+     normal document flow, right after the hero/extras. */
   .project-info {
-    left: 0;
-    right: 0;
-    top: auto;
-    bottom: 0;
+    position: static;
     width: 100%;
-    height: 58vh;
+    height: auto;
     border-left: none;
     border-top: 1px solid rgba(20, 20, 15, 0.12);
   }
