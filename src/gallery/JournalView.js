@@ -4,6 +4,7 @@ const PARALLAX_RANGE = 24 // px, the image's total pan headroom on hover — kep
 const REVEAL_DISTANCE = 720 // px — how far a card travels in from the right edge before it's fully revealed
 const LABEL_FADE_DISTANCE = 220 // px — how close the first card gets to the label before it's fully faded out
 const PROGRESS_DAMP_LAMBDA = 8 // smoothing on the horizontal progress itself — see update()
+const ENTRANCE_LAMBDA = 6 // how fast the section's own one-time entrance wipe settles in
 
 // "Journal" strip: a plain DOM section (no WebGL) sitting in normal document
 // flow right after the main gallery, before the footer — a demo news/updates
@@ -35,6 +36,8 @@ export class JournalView {
     this.cardOffsets = []
     this.maxTranslate = 0
     this._labelRevealed = false
+    this._entering = false
+    this.entranceT = 0
     this.progressSmoothed = 0
 
     this.detail = document.getElementById('journal-detail')
@@ -203,6 +206,20 @@ export class JournalView {
     if (!this._labelRevealed && rect.top < window.innerHeight * 0.92) {
       this.label.classList.add('is-revealed')
       this._labelRevealed = true
+      this._entering = true
+    }
+
+    // The per-card wipe below only plays for a card while it's travelling
+    // in from the right edge (see REVEAL_DISTANCE) — a card whose rest
+    // position is already inside the viewport the moment the section first
+    // scrolls into view (typically the first one or two) would otherwise
+    // read t=1 on the very first frame it's measured and just appear fully
+    // formed, having never animated at all. entranceT gates every card's
+    // reveal behind the section's own one-time arrival, so those first
+    // cards get a real wipe-in too instead of skipping straight to done.
+    if (this._entering && this.entranceT < 1) {
+      this.entranceT = damp(this.entranceT, 1, ENTRANCE_LAMBDA, dt)
+      if (this.entranceT > 0.999) this.entranceT = 1
     }
 
     const scrollable = rect.height - window.innerHeight
@@ -240,7 +257,7 @@ export class JournalView {
       if (!offset) return
       const left = offset.left + translateX
       const t = clamp((viewportWidth - left) / REVEAL_DISTANCE, 0, 1)
-      const eased = 1 - Math.pow(1 - t, 3)
+      const eased = Math.min(1 - Math.pow(1 - t, 3), this.entranceT)
       card.style.clipPath = `inset(0 ${(1 - eased) * 100}% 0 0)`
     })
   }
