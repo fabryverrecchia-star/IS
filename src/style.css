@@ -651,20 +651,14 @@ body.fulltext-active .fulltext-view {
    WebGL canvas, same trick as .site-footer). .journal-sticky pins for
    exactly the track's horizontal overflow — its height is set from JS once
    the track's real scrollWidth is known — then un-pins once the last card
-   has scrolled fully into view, handing scroll back to the page. */
+   has scrolled fully into view, handing scroll back to the page. No
+   standalone heading block above it any more — the title lives inside the
+   sticky row itself (see .journal-label), so the section starts right at
+   the gallery's edge instead of a tall gap before anything shows. */
 .journal {
   position: relative;
   z-index: 2;
   background: var(--bg);
-}
-
-.journal-heading {
-  margin: 0;
-  padding: clamp(64px, 12vw, 140px) clamp(20px, 6vw, 64px) clamp(32px, 6vw, 64px);
-  font-size: clamp(28px, 4.4vw, 52px);
-  font-weight: 300;
-  letter-spacing: -0.01em;
-  color: var(--fg);
 }
 
 .journal-sticky {
@@ -682,6 +676,46 @@ body.fulltext-active .fulltext-view {
   background: var(--bg);
 }
 
+/* Pinned at the left of the sticky row, outside .journal-track — cards
+   scroll past it, it never moves. Reveals once (a bottom-up wipe, the
+   same clip-path technique as .loader-tile) the first time the section
+   scrolls into view — see JournalView.update(). Needs its own stacking
+   context + opaque background: the track's scroll is a `transform`, which
+   only moves painted pixels, not layout — at rest the track's box already
+   starts right after this one, but transformed cards can still slide
+   visually across this same screen region, and without these they'd paint
+   over it (later in DOM order, otherwise plain source-order stacking). */
+.journal-label {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 auto;
+  width: clamp(200px, 20vw, 320px);
+  padding: 0 clamp(20px, 4vw, 48px);
+  background: var(--bg);
+  clip-path: inset(0 0 100% 0);
+  transition: clip-path 0.9s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.journal-label.is-revealed {
+  clip-path: inset(0 0 0% 0);
+}
+
+.journal-heading {
+  margin: 0 0 18px;
+  font-size: clamp(26px, 3vw, 42px);
+  font-weight: 300;
+  letter-spacing: -0.01em;
+  color: var(--fg);
+}
+
+.journal-paragraph {
+  margin: 0;
+  max-width: 30ch;
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--fg-dim);
+}
+
 .journal-track {
   display: flex;
   align-items: flex-start;
@@ -697,6 +731,10 @@ body.fulltext-active .fulltext-view {
   gap: 16px;
   width: var(--journal-card-width, 60vh);
   cursor: pointer;
+  /* Resting/initial state before JournalView.update() takes over each
+     frame — fully clipped away, matching the "just about to enter" state
+     so there's no flash of an unclipped card before JS engages. */
+  clip-path: inset(0 100% 0 0);
 }
 
 .journal-card-media {
@@ -890,6 +928,15 @@ body.journal-detail-open {
 }
 
 @media (max-width: 820px) {
+  .journal-label {
+    width: clamp(120px, 34vw, 180px);
+    padding: 0 clamp(16px, 4vw, 24px);
+  }
+
+  .journal-paragraph {
+    display: none;
+  }
+
   .journal-detail-media {
     left: 0;
     top: 0;

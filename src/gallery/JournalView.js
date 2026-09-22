@@ -1,7 +1,7 @@
 import { clamp } from './math.js'
 
 const PARALLAX_RANGE = 24 // px, the image's total pan headroom on hover — kept light
-const FADE_DISTANCE = 320 // px — how far a card travels in from the right edge before it's fully opaque
+const REVEAL_DISTANCE = 340 // px — how far a card travels in from the right edge before it's fully revealed
 
 // "Journal" strip: a plain DOM section (no WebGL) sitting in normal document
 // flow right after the main gallery, before the footer — a demo news/updates
@@ -18,18 +18,21 @@ const FADE_DISTANCE = 320 // px — how far a card travels in from the right edg
 // on trackpad/mouse/touch as any other scroll.
 //
 // Each card also has a light hover parallax (the image pans a few px against
-// the cursor within its own frame), fades in as it travels in from the right
-// edge of the viewport while scrolling, and opens a click-through detail
-// panel — a horizontally-scrollable showcase of that entry's own photos on
-// the left, classic project info fixed on the right (see openDetail below).
+// the cursor within its own frame), reveals via a clip-path wipe (toward the
+// right, ease-out) as it travels in from the right edge of the viewport
+// while scrolling, and opens a click-through detail panel — a horizontally-
+// scrollable showcase of that entry's own photos on the left, classic
+// project info fixed on the right (see openDetail below).
 export class JournalView {
   constructor({ items, root }) {
     this.items = items
     this.root = root
+    this.label = document.getElementById('journal-label')
     this.track = root.querySelector('.journal-track')
     this.cardEls = []
     this.cardOffsets = []
     this.maxTranslate = 0
+    this._labelRevealed = false
 
     this.detail = document.getElementById('journal-detail')
     this.detailMedia = document.getElementById('journal-detail-media')
@@ -152,7 +155,11 @@ export class JournalView {
     this.root.style.setProperty('--journal-card-height', `${cardHeight}px`)
 
     requestAnimationFrame(() => {
-      this.maxTranslate = Math.max(this.track.scrollWidth - window.innerWidth, 0)
+      // The track no longer spans the full viewport width — the label pinned
+      // to its left (see .journal-label) eats into it — so the scrollable
+      // distance only needs to cover what's left over for the track itself.
+      const trackVisibleWidth = window.innerWidth - this.label.offsetWidth
+      this.maxTranslate = Math.max(this.track.scrollWidth - trackVisibleWidth, 0)
       this.root.style.height = `${Math.round(window.innerHeight + this.maxTranslate)}px`
       // Cached once layout has settled at the new size — read as plain
       // numbers in update() below instead of a getBoundingClientRect() per
@@ -169,22 +176,34 @@ export class JournalView {
   update() {
     if (!this.maxTranslate) return
     const rect = this.root.getBoundingClientRect()
+
+    // One-time reveal for the pinned label, the moment the section first
+    // comes into view — independent of the scrollable/pin guard below,
+    // which only concerns the track's horizontal progress.
+    if (!this._labelRevealed && rect.top < window.innerHeight * 0.92) {
+      this.label.classList.add('is-revealed')
+      this._labelRevealed = true
+    }
+
     const scrollable = rect.height - window.innerHeight
     if (scrollable <= 0) return
     const progress = clamp(-rect.top / scrollable, 0, 1)
     const translateX = -progress * this.maxTranslate
     this.track.style.transform = `translate3d(${translateX}px, 0, 0)`
 
-    // Fade a card in as it travels in from the right edge of the viewport —
-    // instead of popping to full opacity the instant it crosses the edge.
-    // Position is derived from the cached layout offset + this frame's
-    // translateX rather than a live rect read, so no extra reflow per card.
+    // Reveal a card via a clip-path wipe (toward the right, eased out) as it
+    // travels in from the right edge of the viewport — instead of popping
+    // fully visible the instant it crosses the edge. Position is derived
+    // from the cached layout offset + this frame's translateX rather than a
+    // live rect read, so no extra reflow per card.
     const viewportWidth = window.innerWidth
     this.cardEls.forEach((card, i) => {
       const offset = this.cardOffsets[i]
       if (!offset) return
       const left = offset.left + translateX
-      card.style.opacity = clamp((viewportWidth - left) / FADE_DISTANCE, 0, 1)
+      const t = clamp((viewportWidth - left) / REVEAL_DISTANCE, 0, 1)
+      const eased = 1 - Math.pow(1 - t, 3)
+      card.style.clipPath = `inset(0 ${(1 - eased) * 100}% 0 0)`
     })
   }
 

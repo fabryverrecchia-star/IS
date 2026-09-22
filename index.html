@@ -68,10 +68,17 @@
          main gallery has been scrolled through. Normal vertical scroll
          drives horizontal movement through the 6 cards (see JournalView.js)
          until the last one is reached, then vertical scroll continues on to
-         the footer as usual. -->
+         the footer as usual. The label (title + paragraph) sits pinned at
+         the left of the same sticky row, outside the scrolling track, so it
+         never moves — the cards scroll past it, not with it. -->
     <section class="journal" id="journal">
-      <h2 class="journal-heading">Journal</h2>
       <div class="journal-sticky">
+        <div class="journal-label" id="journal-label">
+          <h2 class="journal-heading">Journal</h2>
+          <p class="journal-paragraph">
+            Un fil continu du travail en cours — shootings, coulisses et sorties à venir, entre deux commandes éditoriales.
+          </p>
+        </div>
         <div class="journal-track" id="journal-track"></div>
       </div>
     </section>
