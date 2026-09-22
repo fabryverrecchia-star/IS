@@ -51,17 +51,30 @@
       </div>
     </div>
 
+    <!-- Real project page shown after the WebGL click-to-zoom lands (see
+         DetailView.js / heroLayout.js) — same split as the Journal detail
+         panel (.journal-detail): a full-height media pane covering the
+         left 75% of the viewport (the clicked cover, crop-fit, then any
+         extra images/screenshots as a horizontally-scrollable filmstrip)
+         and a fixed info panel on the right 25%. -->
     <div class="project-page" id="project-page">
-      <div class="project-topbar">
-        <a href="#" class="project-back" id="project-back">← Selected Works</a>
-        <div class="project-meta">
-          <span class="project-meta-title" id="project-title"></span>
-          <span class="project-meta-client" id="project-client"></span>
-          <span class="project-meta-year" id="project-year"></span>
+      <a href="#" class="project-back" id="project-back">← Selected Works</a>
+      <div class="project-media" id="project-media"></div>
+      <div class="project-info">
+        <div class="project-info-inner">
+          <h2 class="project-info-title" id="project-title"></h2>
+          <dl class="project-info-meta">
+            <div class="project-info-row" id="project-client-row">
+              <dt>Client</dt>
+              <dd id="project-client"></dd>
+            </div>
+            <div class="project-info-row" id="project-year-row">
+              <dt>Année</dt>
+              <dd id="project-year"></dd>
+            </div>
+          </dl>
         </div>
       </div>
-      <div class="project-hero-slot" id="project-hero-slot"></div>
-      <div class="project-body" id="project-body"></div>
     </div>
 
     <!-- "Journal" strip — a demo news/updates section that appears once the

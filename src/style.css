@@ -409,15 +409,19 @@ body.fulltext-active .fulltext-view {
   }
 }
 
-/* --- project page (real scrollable view after the entrance zoom) --- */
+/* --- project page (shown after the entrance zoom) ---
+   Same split as the Journal detail panel (.journal-detail): a full-height
+   media pane on the left 75% (crop-fit hero, then any extra images as a
+   horizontally-scrollable filmstrip) and a fixed info panel on the right
+   25% — see heroLayout.js for why the WebGL zoom already lands exactly
+   here, and ProjectPage.js for how the DOM hand-off matches it. */
 
 .project-page {
   position: fixed;
   inset: 0;
   z-index: 30;
   background: var(--bg);
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden;
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
@@ -434,123 +438,136 @@ body.fulltext-active .fulltext-view {
   pointer-events: auto;
 }
 
-.project-topbar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 2;
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 24px;
-  padding: 24px clamp(20px, 6vw, 64px);
-  mix-blend-mode: difference;
-  color: #fff;
-}
-
 .project-back {
+  position: fixed;
+  top: 24px;
+  left: clamp(20px, 6vw, 64px);
+  z-index: 2;
   font-size: 12px;
   letter-spacing: 0.06em;
-  color: inherit;
+  color: #fff;
   text-decoration: none;
   white-space: nowrap;
   padding: 4px 0;
+  mix-blend-mode: difference;
 }
 
 .project-back:hover {
   opacity: 0.7;
 }
 
-.project-meta {
+.project-media {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 75%;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  text-align: right;
-  gap: 3px;
+  background: #eee;
 }
 
-.project-meta-title {
-  font-size: 13px;
-  letter-spacing: 0.04em;
-  color: inherit;
-}
-
-.project-meta-client,
-.project-meta-year {
-  font-size: 11px;
-  letter-spacing: 0.06em;
-  color: inherit;
-  opacity: 0.7;
-}
-
-.project-hero-slot {
-  width: 100%;
-  line-height: 0;
-}
-
+/* The clicked cover: sized to the pane itself (not its own aspect ratio)
+   and crop-fit, matching the tile shader's cover-fit UVs so the WebGL ->
+   DOM hand-off is pixel-identical. */
 .project-hero-media {
-  display: block;
+  flex: 0 0 100%;
   width: 100%;
-  height: auto;
-}
-
-.project-body {
-  padding: clamp(48px, 8vw, 96px) 0;
-}
-
-.project-body:empty {
-  padding: 0;
-}
-
-.project-extra {
-  max-width: 720px;
-  margin: 0 auto clamp(48px, 8vw, 96px);
-  overflow: hidden;
-}
-
-.project-extra-img {
+  height: 100%;
+  object-fit: cover;
   display: block;
-  width: 100%;
-  height: auto;
-  /* Base scale matches the one applied alongside the parallax translateY
-     in ProjectPage._updateParallax — kept here too so the very first frame
-     (before any scroll fires) already has the overscan margin, instead of
-     the image visibly "growing" on the first scroll tick. */
-  transform: scale(1.18);
-  will-change: transform;
 }
 
-.project-screens {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
+/* Extra images/screenshots: real "images tailles différentes" side by
+   side, own natural (uncropped) width — same filmstrip technique as
+   .journal-detail-media img. */
+.project-extra-media {
+  flex: 0 0 auto;
+  height: 100%;
+  width: auto;
+  display: block;
+}
+
+.project-info {
+  position: fixed;
+  right: 0;
+  top: 0;
+  width: 25%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  overflow-y: auto;
+  background: var(--bg);
+  border-left: 1px solid rgba(20, 20, 15, 0.12);
+}
+
+.project-info-inner {
+  width: 100%;
+  padding: clamp(28px, 4vw, 56px);
+}
+
+.project-info-title {
+  margin: 0 0 32px;
+  font-size: clamp(22px, 2vw, 30px);
+  font-weight: 300;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+  color: var(--fg);
+}
+
+.project-info-meta {
+  margin: 0;
+  border-top: 1px solid rgba(20, 20, 15, 0.12);
+}
+
+.project-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
   gap: 16px;
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 0 clamp(20px, 6vw, 64px);
+  padding: 13px 0;
+  border-bottom: 1px solid rgba(20, 20, 15, 0.12);
 }
 
-.project-screens-img {
-  display: block;
-  width: 100%;
-  height: auto;
+.project-info-row[hidden] {
+  display: none;
+}
+
+.project-info-row dt {
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fg-dim);
+}
+
+.project-info-row dd {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  color: var(--fg);
+  text-align: right;
 }
 
 @media (max-width: 700px) {
-  .project-topbar {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 16px;
+  .project-media {
+    left: 0;
+    right: 0;
+    top: 0;
+    width: 100%;
+    height: 42vh;
   }
 
-  .project-meta {
-    align-items: flex-start;
-    text-align: left;
-    gap: 4px;
-  }
-
-  .project-screens {
-    grid-template-columns: 1fr;
+  .project-info {
+    left: 0;
+    right: 0;
+    top: auto;
+    bottom: 0;
+    width: 100%;
+    height: 58vh;
+    border-left: none;
+    border-top: 1px solid rgba(20, 20, 15, 0.12);
   }
 }
 

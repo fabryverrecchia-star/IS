@@ -1,5 +1,3 @@
-import { computeHeroLayout } from './heroLayout.js'
-
 // Resolves once the element has an actual frame ready to paint — an image
 // decoded, or a video past HAVE_CURRENT_DATA. A capped wait keeps a stalled
 // asset from blocking the hand-off indefinitely.
@@ -19,12 +17,14 @@ function waitForHeroReady(el, type) {
   })
 }
 
-// Owns the real, scrollable project page shown after the WebGL entrance
-// transition lands: a plain DOM view (hero media + optional extra images/
-// screenshots + a top bar with a visible back link and right-aligned
-// client/year). Kept deliberately as regular DOM/CSS rather than more
-// WebGL — it's the simplest robust way to get real page scrolling and
-// parallax, and it never has to touch the gallery's own render loop.
+// Owns the real project page shown after the WebGL entrance transition
+// lands: the same split as the Journal detail panel (see JournalView.js) —
+// a full-height media pane on the left 75% (the clicked cover, crop-fit to
+// land pixel-identical on the WebGL hero it replaces, then any extra
+// images/screenshots as a horizontally-scrollable filmstrip) and a fixed
+// info panel on the right 25%. Kept deliberately as regular DOM/CSS rather
+// than more WebGL — it's the simplest robust way to get the filmstrip's
+// native scroll, and it never has to touch the gallery's own render loop.
 export class ProjectPage {
   constructor(app, { onClose } = {}) {
     this.app = app
@@ -35,45 +35,48 @@ export class ProjectPage {
     this.backLink = document.getElementById('project-back')
     this.titleEl = document.getElementById('project-title')
     this.clientEl = document.getElementById('project-client')
+    this.clientRow = document.getElementById('project-client-row')
     this.yearEl = document.getElementById('project-year')
-    this.heroSlot = document.getElementById('project-hero-slot')
-    this.body = document.getElementById('project-body')
+    this.yearRow = document.getElementById('project-year-row')
+    this.media = document.getElementById('project-media')
 
     this.backLink.addEventListener('click', (e) => {
       e.preventDefault()
       this.close()
     })
 
-    this._onScroll = () => this._updateParallax()
-    this.root.addEventListener('scroll', this._onScroll, { passive: true })
+    // Lets an ordinary vertical wheel/trackpad gesture drive the media
+    // pane's horizontal scroll too — same technique as the Journal detail
+    // panel (see JournalView._onDetailWheel).
+    this._onMediaWheel = (e) => {
+      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return
+      e.preventDefault()
+      this.media.scrollLeft += e.deltaY
+    }
+    this.media.addEventListener('wheel', this._onMediaWheel, { passive: false })
   }
 
   get isOpen() {
     return this.tile !== null
   }
 
-  // For a 'banner' cover (see heroLayout.js), #project-page's normal
-  // document flow already reproduces the WebGL hero's final rect exactly —
-  // a full-width first child scrolled to top needs no extra math. A
-  // 'contained' cover (very vertical media) isn't full-width, so its exact
-  // size and centering are computed here with the same helper DetailView
-  // used, and applied as inline styles — that's what keeps the hand-off
-  // pixel-identical (no pop) in that case too.
+  // The media pane's own layout (position:fixed, width:75%, height:100% —
+  // see style.css) already reproduces the WebGL hero's final rect exactly,
+  // and the hero slide inside it is sized to the pane itself (flex-basis
+  // 100%) rather than the image's own aspect ratio, cropping the same way
+  // the tile shader's cover-fit UVs do — so no per-item layout math is
+  // needed here any more to keep the hand-off pixel-identical.
   open(tile) {
     const item = tile.item
     this.tile = tile
 
     this.titleEl.textContent = item.title
     this.clientEl.textContent = item.client || ''
-    this.clientEl.hidden = !item.client
+    this.clientRow.hidden = !item.client
     this.yearEl.textContent = item.year || ''
-    this.yearEl.hidden = !item.year
+    this.yearRow.hidden = !item.year
 
-    this.heroSlot.innerHTML = ''
-    this.body.innerHTML = ''
-
-    const { viewportWidth, viewportHeight } = this.app
-    const layout = computeHeroLayout({ aspect: item.aspect, viewportWidth, viewportHeight })
+    this.media.innerHTML = ''
 
     let heroEl
     if (item.type === 'video') {
@@ -112,48 +115,23 @@ export class ProjectPage {
       heroEl.decoding = 'async'
     }
     heroEl.className = 'project-hero-media'
-
-    if (layout.mode === 'contained') {
-      const spacer = Math.max(0, (viewportHeight - layout.height) / 2)
-      this.heroSlot.style.paddingTop = `${spacer}px`
-      this.heroSlot.style.paddingBottom = `${spacer}px`
-      heroEl.style.width = `${layout.width}px`
-      heroEl.style.margin = '0 auto'
-    } else {
-      this.heroSlot.style.paddingTop = ''
-      this.heroSlot.style.paddingBottom = ''
-      heroEl.style.width = ''
-      heroEl.style.margin = ''
-    }
-
-    this.heroSlot.appendChild(heroEl)
+    this.media.appendChild(heroEl)
     this._heroReady = waitForHeroReady(heroEl, item.type)
 
-    if (item.type === 'video' && item.screenshots && item.screenshots.length) {
-      const grid = document.createElement('div')
-      grid.className = 'project-screens'
-      item.screenshots.forEach((shot) => {
-        const img = document.createElement('img')
-        img.src = shot.src
-        img.alt = ''
-        img.className = 'project-screens-img'
-        grid.appendChild(img)
-      })
-      this.body.appendChild(grid)
-    } else if (item.images && item.images.length) {
-      item.images.forEach((extra) => {
-        const wrap = document.createElement('div')
-        wrap.className = 'project-extra'
-        const img = document.createElement('img')
-        img.src = extra.src
-        img.alt = ''
-        img.className = 'project-extra-img'
-        wrap.appendChild(img)
-        this.body.appendChild(wrap)
-      })
-    }
+    // Extra images/screenshots join the same filmstrip, uncropped at their
+    // own natural width (real "images tailles différentes" side by side) —
+    // exactly the Journal detail panel's technique.
+    const extras = item.type === 'video' ? item.screenshots : item.images
+    ;(extras || []).forEach((extra) => {
+      const img = document.createElement('img')
+      img.src = extra.src
+      img.alt = ''
+      img.loading = 'lazy'
+      img.className = 'project-extra-media'
+      this.media.appendChild(img)
+    })
 
-    this.root.scrollTop = 0
+    this.media.scrollLeft = 0
     // Caller shows the page (see `show()`) only once this resolves — the
     // WebGL hero stays on screen until the DOM one actually has a frame
     // to paint, so the swap is a hard cut between two identical-looking
@@ -178,17 +156,5 @@ export class ProjectPage {
     const tile = this.tile
     this.tile = null
     this.onClose(tile)
-  }
-
-  _updateParallax() {
-    const vh = window.innerHeight
-    this.body.querySelectorAll('.project-extra-img').forEach((img) => {
-      const rect = img.getBoundingClientRect()
-      const center = rect.top + rect.height / 2
-      const offset = (center - vh / 2) * -0.16
-      // The image is scaled up (see .project-extra-img) so this shift never
-      // uncovers empty space at the top/bottom of its overflow:hidden wrap.
-      img.style.transform = `scale(1.18) translateY(${offset}px)`
-    })
   }
 }

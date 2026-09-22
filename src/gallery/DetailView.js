@@ -115,13 +115,13 @@ export class DetailView {
     this.start.width = tile.cell.width
     this.start.height = tile.cell.height
 
-    // End target — banner (full-bleed, top-aligned) or contained (centered,
-    // with margins) depending on aspect; see heroLayout.js. z stays 0 so
-    // world units equal CSS pixels exactly, which ProjectPage relies on to
-    // hand off to a pixel-identical DOM element with no pop.
+    // End target — a full-height panel covering the left 75% of the
+    // viewport, crop-fit; see heroLayout.js. z stays 0 so world units equal
+    // CSS pixels exactly, which ProjectPage relies on to hand off to a
+    // pixel-identical DOM element with no pop.
     const { viewportWidth, viewportHeight } = this.app
     const aspect = tile.item.aspect
-    const layout = computeHeroLayout({ aspect, viewportWidth, viewportHeight })
+    const layout = computeHeroLayout({ viewportWidth, viewportHeight })
 
     this.end.x = layout.x
     this.end.y = layout.y

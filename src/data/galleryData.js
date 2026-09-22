@@ -149,19 +149,7 @@ const rawItems = [
   },
 ]
 
-// DEMO ONLY: for any *image* project without its own real `images` yet,
-// fall back to its cover repeated 4x so the project page's parallax scroll
-// reveal is visible. Once a project lists its own real extra photos (like
-// 'img61' above), that list is used as-is — replace the rest the same way
-// and delete this fallback.
-export const galleryItems = rawItems.map((item) =>
-  item.images || item.type !== 'image'
-    ? item
-    : {
-        ...item,
-        images: [item, item, item, item].map(({ src, aspect }) => ({ src, aspect })),
-      }
-)
+export const galleryItems = rawItems
 
 // DEMO ONLY: the "Journal" horizontal strip below the main gallery (see
 // JournalView.js) — reuses existing photos already on disk (mostly each
