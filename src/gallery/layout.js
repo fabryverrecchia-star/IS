@@ -38,9 +38,12 @@ const LANDSCAPE_SPAN_THRESHOLD = 1.2
 export function computeGalleryLayout(items, viewportWidth, viewportHeight) {
   const columns = getColumnCount(viewportWidth)
 
+  // Gutter/rowGap match the side margins exactly — the space between two
+  // projects reads the same as the space between a project and the edge of
+  // the page, rather than a noticeably tighter in-grid rhythm.
   const sideMargin = viewportWidth >= 820 ? viewportWidth * 0.07 : 24
-  const gutter = viewportWidth >= 820 ? 40 : 22
-  const rowGap = viewportWidth >= 820 ? 52 : 28
+  const gutter = sideMargin
+  const rowGap = sideMargin
 
   const usableWidth = viewportWidth - sideMargin * 2 - gutter * (columns - 1)
   const columnWidth = usableWidth / columns
