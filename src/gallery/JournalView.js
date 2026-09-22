@@ -2,6 +2,7 @@ import { clamp } from './math.js'
 
 const PARALLAX_RANGE = 24 // px, the image's total pan headroom on hover — kept light
 const REVEAL_DISTANCE = 340 // px — how far a card travels in from the right edge before it's fully revealed
+const LABEL_FADE_DISTANCE = 220 // px — how close the first card gets to the label before it's fully faded out
 
 // "Journal" strip: a plain DOM section (no WebGL) sitting in normal document
 // flow right after the main gallery, before the footer — a demo news/updates
@@ -155,17 +156,34 @@ export class JournalView {
     this.root.style.setProperty('--journal-card-height', `${cardHeight}px`)
 
     requestAnimationFrame(() => {
-      // The track no longer spans the full viewport width — the label pinned
-      // to its left (see .journal-label) eats into it — so the scrollable
-      // distance only needs to cover what's left over for the track itself.
-      const trackVisibleWidth = window.innerWidth - this.label.offsetWidth
+      this.labelWidth = this.label.offsetWidth
+
+      // The track's own transform (set every frame in update()) makes it
+      // establish its own containing block, so it becomes each card's
+      // offsetParent instead of the sticky ancestor further up — el.offsetLeft
+      // below is relative to the track's box, not the viewport. Rather than
+      // recomputing the track's viewport-relative base X by hand (it has to
+      // account for the label's width *and* the flex gap next to it — easy
+      // to get subtly wrong), read it straight from the DOM: reset the
+      // transform, measure, put it back — synchronous, so nothing paints
+      // in between.
+      const prevTransform = this.track.style.transform
+      this.track.style.transform = 'none'
+      const trackBaseX = this.track.getBoundingClientRect().left
+      this.track.style.transform = prevTransform
+
+      // The track no longer spans the full viewport width — the label (and
+      // the gap next to it) pinned to its left eats into it — so the
+      // scrollable distance only needs to cover what's left over for the
+      // track itself.
+      const trackVisibleWidth = window.innerWidth - trackBaseX
       this.maxTranslate = Math.max(this.track.scrollWidth - trackVisibleWidth, 0)
       this.root.style.height = `${Math.round(window.innerHeight + this.maxTranslate)}px`
       // Cached once layout has settled at the new size — read as plain
       // numbers in update() below instead of a getBoundingClientRect() per
       // card per frame, since offsetLeft/offsetWidth don't change once the
       // track itself isn't being resized (only its transform moves).
-      this.cardOffsets = this.cardEls.map((el) => ({ left: el.offsetLeft, width: el.offsetWidth }))
+      this.cardOffsets = this.cardEls.map((el) => ({ left: el.offsetLeft + trackBaseX, width: el.offsetWidth }))
     })
   }
 
@@ -190,6 +208,15 @@ export class JournalView {
     const progress = clamp(-rect.top / scrollable, 0, 1)
     const translateX = -progress * this.maxTranslate
     this.track.style.transform = `translate3d(${translateX}px, 0, 0)`
+
+    // Fades the label out as the first card's own left edge approaches its
+    // column, back in if the scroll reverses — recomputed from the live
+    // translateX every frame (not a one-shot flag), so it's always exactly
+    // in sync with however far the horizontal scroll has actually gone.
+    if (this.cardOffsets[0]) {
+      const firstCardLeft = this.cardOffsets[0].left + translateX
+      this.label.style.opacity = clamp((firstCardLeft - this.labelWidth) / LABEL_FADE_DISTANCE, 0, 1)
+    }
 
     // Reveal a card via a clip-path wipe (toward the right, eased out) as it
     // travels in from the right edge of the viewport — instead of popping

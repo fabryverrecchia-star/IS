@@ -667,6 +667,11 @@ body.fulltext-active .fulltext-view {
   height: 100vh;
   display: flex;
   align-items: center;
+  /* Real breathing room between the label and the first card at rest —
+     without this the two sat close enough that JournalView's approach-fade
+     (see update()) would already be partway faded before any scrolling
+     even happened, instead of starting fully opaque. */
+  gap: clamp(100px, 14vw, 320px);
   overflow: hidden;
   /* Explicit opaque background — this pinned box sits directly over the
      fixed WebGL canvas (see .gallery-canvas-root), and the track doesn't
@@ -677,21 +682,18 @@ body.fulltext-active .fulltext-view {
 }
 
 /* Pinned at the left of the sticky row, outside .journal-track — cards
-   scroll past it, it never moves. Reveals once (a bottom-up wipe, the
-   same clip-path technique as .loader-tile) the first time the section
-   scrolls into view — see JournalView.update(). Needs its own stacking
-   context + opaque background: the track's scroll is a `transform`, which
-   only moves painted pixels, not layout — at rest the track's box already
-   starts right after this one, but transformed cards can still slide
-   visually across this same screen region, and without these they'd paint
-   over it (later in DOM order, otherwise plain source-order stacking). */
+   scroll past it in normal source-order stacking (no z-index override: the
+   label must stay visually *under* the track, per design), so it never
+   competes with a card's own reveal. Wipe-reveals once (a bottom-up clip,
+   the same technique as .loader-tile) the first time the section scrolls
+   into view; its opacity is then driven continuously every frame by
+   JournalView.update() — fading out as the first card's own left edge
+   approaches this column, back in if the scroll reverses — rather than a
+   one-shot trigger, so it always matches the live scroll position exactly. */
 .journal-label {
-  position: relative;
-  z-index: 1;
   flex: 0 0 auto;
-  width: clamp(200px, 20vw, 320px);
-  padding: 0 clamp(20px, 4vw, 48px);
-  background: var(--bg);
+  width: clamp(240px, 24vw, 380px);
+  padding: 0 clamp(40px, 6vw, 80px) 0 clamp(20px, 4vw, 48px);
   clip-path: inset(0 0 100% 0);
   transition: clip-path 0.9s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -701,8 +703,8 @@ body.fulltext-active .fulltext-view {
 }
 
 .journal-heading {
-  margin: 0 0 18px;
-  font-size: clamp(26px, 3vw, 42px);
+  margin: 0 0 20px;
+  font-size: clamp(32px, 3.8vw, 50px);
   font-weight: 300;
   letter-spacing: -0.01em;
   color: var(--fg);
@@ -710,9 +712,9 @@ body.fulltext-active .fulltext-view {
 
 .journal-paragraph {
   margin: 0;
-  max-width: 30ch;
-  font-size: 13px;
-  line-height: 1.65;
+  max-width: 34ch;
+  font-size: 14px;
+  line-height: 1.7;
   color: var(--fg-dim);
 }
 
