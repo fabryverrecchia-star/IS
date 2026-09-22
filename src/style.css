@@ -60,6 +60,31 @@ body {
   pointer-events: none;
 }
 
+/* One title per tile, positioned every frame from its own projected screen
+   position (see GalleryApp._updateTileLabels) rather than laid out in
+   normal flow — the canvas itself is position:fixed and scrolls entirely
+   via the WebGL scene, so its titles have to follow the same way. */
+.gallery-tile-labels {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.gallery-tile-label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  max-width: 60vw;
+  font-size: 12px;
+  letter-spacing: 0.01em;
+  color: var(--fg-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  will-change: transform;
+}
+
 .site-header {
   position: fixed;
   top: 0;
@@ -92,7 +117,8 @@ body.overview-active .site-subtitle {
 
 body.overview-active .site-footer,
 body.overview-active .scroll-hint,
-body.overview-active .journal {
+body.overview-active .journal,
+body.overview-active .gallery-tile-labels {
   display: none;
 }
 

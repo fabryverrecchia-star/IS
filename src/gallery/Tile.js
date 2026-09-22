@@ -147,6 +147,14 @@ export class Tile {
     this.uniforms.uPlaneSize.value.set(cell.width, cell.height)
 
     this.group.position.set(this.restX, this.restY, this.restZ)
+
+    // Bottom-left corner of the tile, in the same world units as
+    // restX/restY — the anchor GalleryApp projects to screen space each
+    // frame to position this tile's DOM title underneath it (see
+    // GalleryApp._updateTileLabels). Kept in local (pre-transform) space
+    // since the projection already applies contentGroup's own scroll/tilt.
+    this.labelAnchorX = this.restX - cell.width / 2
+    this.labelAnchorY = this.restY - cell.height / 2
   }
 
   setMagnet({ strength, hoverUv, pull, lift, scale }) {

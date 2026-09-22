@@ -18,6 +18,7 @@ const VIDEO_PLAY_MARGIN = 260 // px beyond viewport edges to start/stop playback
 const MODE_REVEAL_MAX_STAGGER = 0.3 // s, matches the cap in _animateTilesReveal
 const MODE_REVEAL_DURATION = 0.6 // s, matches Tile's _modeRevealDuration
 const MODE_TRANSITION_MS = (MODE_REVEAL_MAX_STAGGER + MODE_REVEAL_DURATION) * 1000
+const TILE_LABEL_OFFSET_Y = 14 // px below the tile's projected bottom edge
 
 export class GalleryApp {
   constructor(root, { onProgress, onReady } = {}) {
@@ -54,6 +55,7 @@ export class GalleryApp {
     this.mouseNDC = new THREE.Vector2(9999, 9999)
     this.mouseWorld = new THREE.Vector3()
     this.mouseLocal = new THREE.Vector3()
+    this._labelProjectVec = new THREE.Vector3()
     this.mouseActive = false
     this.raycaster = new THREE.Raycaster()
     this.groundPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0)
@@ -103,6 +105,14 @@ export class GalleryApp {
     this.videoContainer = document.createElement('div')
     this.videoContainer.className = 'gallery-video-pool'
     this.root.appendChild(this.videoContainer)
+
+    // Each tile's title lives here as plain DOM text, not baked into the
+    // WebGL scene — positioned every frame from the tile's own projected
+    // screen position (see _updateTileLabels) so it tracks the canvas's
+    // scroll/tilt/scale exactly without needing a texture per title.
+    this.tileLabels = document.createElement('div')
+    this.tileLabels.className = 'gallery-tile-labels'
+    this.root.appendChild(this.tileLabels)
   }
 
   // Builds the magazine-style title list once at startup (kept in the DOM,
@@ -176,6 +186,12 @@ export class GalleryApp {
         })
         this.tiles.push(tile)
         this.contentGroup.add(tile.group)
+
+        const label = document.createElement('span')
+        label.className = 'gallery-tile-label'
+        label.textContent = item.title
+        this.tileLabels.appendChild(label)
+        tile.labelEl = label
       })
     } else {
       this.tiles.forEach((tile, index) => {
@@ -611,6 +627,29 @@ export class GalleryApp {
     this.renderer.render(this.scene, this.camera)
   }
 
+  // Projects each tile's bottom-left corner (see Tile.applyCell) through
+  // the same camera/contentGroup transform the WebGL scene itself uses, so
+  // the DOM title underneath tracks the tile exactly through scroll, the
+  // idle tilt and the speed-scale — without needing a canvas-baked texture
+  // per title. Opacity is tied to the tile's own reveal/dim state so a
+  // title never floats in ahead of its thumb or stays crisp over a
+  // detail-dimmed one.
+  _updateTileLabels() {
+    this.contentGroup.updateMatrixWorld()
+    const vw = this.viewportWidth
+    const vh = this.viewportHeight
+    this.tiles.forEach((tile) => {
+      if (!tile.labelEl) return
+      const v = this._labelProjectVec.set(tile.labelAnchorX, tile.labelAnchorY, 0)
+      v.applyMatrix4(this.contentGroup.matrixWorld)
+      v.project(this.camera)
+      const x = (v.x * 0.5 + 0.5) * vw
+      const y = (1 - (v.y * 0.5 + 0.5)) * vh + TILE_LABEL_OFFSET_Y
+      tile.labelEl.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0)`
+      tile.labelEl.style.opacity = tile.uniforms.uRevealProgress.value * (1 - tile.dimCurrent)
+    })
+  }
+
   _update(dt, elapsed) {
     // --- scroll ---
     const rawScroll = window.scrollY || window.pageYOffset || 0
@@ -638,6 +677,12 @@ export class GalleryApp {
     const speedFactor = clamp(Math.abs(velocity) * 0.00006, 0, 0.035)
     const targetScale = 1 - speedFactor
     this.contentGroup.scale.setScalar(damp(this.contentGroup.scale.x, targetScale, 6, dt))
+
+    // Titles track their tile's actual projected screen position (scroll,
+    // tilt and the speed-scale above all bend it slightly), so this has to
+    // run after every contentGroup transform for the frame is final —
+    // grid-only, same as the journal strip just above.
+    if (this.viewMode === 'grid') this._updateTileLabels()
 
     // --- detail (click-to-zoom) transition ---
     this.detailView.update(dt)
@@ -739,6 +784,7 @@ export class GalleryApp {
     this.carousel3D.dispose()
     this.journal.dispose()
     this.tiles.forEach((t) => t.dispose())
+    this.tileLabels.remove()
     this.renderer.dispose()
   }
 }
