@@ -1,8 +1,9 @@
-import { clamp } from './math.js'
+import { clamp, damp } from './math.js'
 
 const PARALLAX_RANGE = 24 // px, the image's total pan headroom on hover — kept light
 const REVEAL_DISTANCE = 720 // px — how far a card travels in from the right edge before it's fully revealed
 const LABEL_FADE_DISTANCE = 220 // px — how close the first card gets to the label before it's fully faded out
+const PROGRESS_DAMP_LAMBDA = 8 // smoothing on the horizontal progress itself — see update()
 
 // "Journal" strip: a plain DOM section (no WebGL) sitting in normal document
 // flow right after the main gallery, before the footer — a demo news/updates
@@ -34,6 +35,7 @@ export class JournalView {
     this.cardOffsets = []
     this.maxTranslate = 0
     this._labelRevealed = false
+    this.progressSmoothed = 0
 
     this.detail = document.getElementById('journal-detail')
     this.detailMedia = document.getElementById('journal-detail-media')
@@ -191,7 +193,7 @@ export class JournalView {
   // (not full-text/3D — see .overview-active hiding the section in CSS) is
   // showing, the same way the fulltext tilt is piggybacked onto that loop —
   // cheap enough (one rect read + a transform) not to need its own rAF.
-  update() {
+  update(dt) {
     if (!this.maxTranslate) return
     const rect = this.root.getBoundingClientRect()
 
@@ -205,8 +207,17 @@ export class JournalView {
 
     const scrollable = rect.height - window.innerHeight
     if (scrollable <= 0) return
-    const progress = clamp(-rect.top / scrollable, 0, 1)
-    const translateX = -progress * this.maxTranslate
+    const targetProgress = clamp(-rect.top / scrollable, 0, 1)
+    // Damped rather than read straight off the raw scroll position — a
+    // single fast trackpad flick (native momentum) can otherwise blast
+    // through the whole pinned range within a couple of frames, so the
+    // entire reveal would complete almost instantly and read as no
+    // animation at all. Same technique GalleryApp itself uses for the
+    // tilt-on-scroll effect (see scrollSmoothed there); direction-agnostic,
+    // so scrolling back the other way still smoothly reverses everything
+    // driven from it below.
+    this.progressSmoothed = damp(this.progressSmoothed, targetProgress, PROGRESS_DAMP_LAMBDA, dt)
+    const translateX = -this.progressSmoothed * this.maxTranslate
     this.track.style.transform = `translate3d(${translateX}px, 0, 0)`
 
     // Fades the label out as the first card's own left edge approaches its

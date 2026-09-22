@@ -632,7 +632,7 @@ export class GalleryApp {
       // The journal strip only sits in normal document flow below the
       // gallery in this mode (hidden via CSS the other two) — updating it
       // elsewhere would just read a detached/zero-size rect.
-      this.journal.update()
+      this.journal.update(dt)
     }
 
     const speedFactor = clamp(Math.abs(velocity) * 0.00006, 0, 0.035)
