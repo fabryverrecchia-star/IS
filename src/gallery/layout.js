@@ -1,14 +1,6 @@
 // Pure layout math: turns the gallery items + a viewport size into a
 // responsive layout. Hard-capped at 4 columns per the design brief.
-//
-// Column count stays fixed at every breakpoint — an extra column was tried
-// to shrink thumbnails, but with only a dozen items total that starves some
-// columns of their fair turn early on (the masonry picker always grabs
-// whichever column is currently shortest, so the first few single-span
-// items fan out across *n* different columns; adding a 5th meant a whole
-// column could sit completely empty until the first spanned item happened
-// to pair with it, reading as a broken hole up top). Thumbnails shrink via
-// the jitter below instead — same slot geometry, same proven packing.
+
 export function getColumnCount(viewportWidth) {
   if (viewportWidth >= 1100) return 4
   if (viewportWidth >= 820) return 3
@@ -47,11 +39,11 @@ export function computeGalleryLayout(items, viewportWidth, viewportHeight) {
   const columns = getColumnCount(viewportWidth)
 
   const sideMargin = viewportWidth >= 820 ? viewportWidth * 0.07 : 24
-  const gutter = viewportWidth >= 820 ? 26 : 13
+  const gutter = viewportWidth >= 820 ? 32 : 16
   // Leaves just enough room under each tile for its title (see
   // GalleryApp's tile label layer) plus a little breathing space before
   // the next row — tighter than the gutter since it doesn't need to fit text.
-  const rowGap = viewportWidth >= 820 ? 38 : 24
+  const rowGap = viewportWidth >= 820 ? 48 : 30
 
   const usableWidth = viewportWidth - sideMargin * 2 - gutter * (columns - 1)
   const columnWidth = usableWidth / columns
@@ -87,16 +79,13 @@ export function computeGalleryLayout(items, viewportWidth, viewportHeight) {
 
     const slotWidth = columnWidth * span + gutter * (span - 1)
 
-    // A guaranteed ~20% shrink from the full slot ("reduire de 20% la
-    // taille des thumb"), plus a smaller randomized variance on top for the
-    // controlled disorder — both seeded by the item's own index, and both
-    // independent of column/slot geometry so they can't disturb the
-    // masonry packing above. Spanned (wide) items shrink less — the point
-    // of the span is to give them real presence, not to immediately give
-    // it back.
-    const baseShrink = span > 1 ? 0.15 : 0.2
-    const jitterRange = span > 1 ? 0.06 : 0.1
-    const widthJitter = 1 - baseShrink - jitterRange / 2 + seededRandom(index * 12.9898) * jitterRange
+    // Controlled disorder: a little narrower than the full slot (never
+    // wider, so it can never spill past it), nudged left/right within the
+    // slack that frees up — both seeded by the item's own index. Spanned
+    // (wide) items get only a token amount of shrink — the point of the
+    // span is to give them real presence, not to immediately give it back.
+    const jitterRange = span > 1 ? 0.06 : 0.18
+    const widthJitter = 1 - jitterRange + seededRandom(index * 12.9898) * jitterRange
     const cellWidth = columns === 1 ? slotWidth : slotWidth * widthJitter
     const freeSpace = slotWidth - cellWidth
     const offsetX = (seededRandom(index * 78.233 + 1) - 0.5) * freeSpace
