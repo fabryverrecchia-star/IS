@@ -39,8 +39,8 @@ export function computeGalleryLayout(items, viewportWidth, viewportHeight) {
   const columns = getColumnCount(viewportWidth)
 
   const sideMargin = viewportWidth >= 820 ? viewportWidth * 0.07 : 24
-  const gutter = viewportWidth >= 820 ? 52 : 28
-  const rowGap = viewportWidth >= 820 ? 68 : 36
+  const gutter = viewportWidth >= 820 ? 40 : 22
+  const rowGap = viewportWidth >= 820 ? 52 : 28
 
   const usableWidth = viewportWidth - sideMargin * 2 - gutter * (columns - 1)
   const columnWidth = usableWidth / columns
