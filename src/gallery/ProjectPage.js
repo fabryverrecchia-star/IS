@@ -48,6 +48,25 @@ export class ProjectPage {
 
     this._onScroll = () => this._updateParallax()
     this.root.addEventListener('scroll', this._onScroll, { passive: true })
+
+    // Drives this page's own scroll manually from the wheel delta instead
+    // of leaving it to the browser's native target resolution — Chromium
+    // (at least under fast/close-together wheel ticks) doesn't reliably
+    // keep targeting this page once it hits a certain pace, and lets the
+    // gesture fall through to the gallery page underneath instead. Because
+    // that background is still visually hidden behind this opaque overlay,
+    // nothing looks wrong while it's happening — it only shows up as a
+    // silently-relocated scroll position once this page closes. Redirecting
+    // deterministically here (and preventing the native scroll outright)
+    // removes that ambiguity entirely, the same way JournalView already
+    // drives its own filmstrip from wheel deltas rather than trusting the
+    // browser's default target.
+    this._onWheel = (e) => {
+      if (!this.isOpen) return
+      e.preventDefault()
+      this.root.scrollTop += e.deltaY
+    }
+    window.addEventListener('wheel', this._onWheel, { passive: false })
   }
 
   get isOpen() {
@@ -135,8 +154,15 @@ export class ProjectPage {
 
   // Makes the built page visible — instant, no fade (see open()'s comment
   // on why easing this would reintroduce the flash it's meant to avoid).
+  // Also locks the gallery page's own scroll (same technique as the
+  // Journal detail panel's body.journal-detail-open) — without this, once
+  // this page's own scroll hits its end, the gesture chains through to
+  // the still-scrollable background behind it (invisible under this
+  // opaque overlay), so closing later would land back on whatever the
+  // background silently scrolled to instead of where it was left.
   show() {
     this.root.classList.add('is-visible')
+    document.body.classList.add('project-page-open')
   }
 
   close() {
@@ -147,6 +173,7 @@ export class ProjectPage {
       this._fullVideoEl = null
     }
     this.root.classList.remove('is-visible')
+    document.body.classList.remove('project-page-open')
     const tile = this.tile
     this.tile = null
     this.onClose(tile)

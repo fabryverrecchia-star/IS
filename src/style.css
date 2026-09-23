@@ -425,9 +425,25 @@ body.fulltext-active .fulltext-view {
   background: var(--bg);
   overflow-y: auto;
   overflow-x: hidden;
+  /* Without this, a big enough single scroll gesture (a fast trackpad
+     flick, or Playwright's mouse.wheel with a large delta) chains straight
+     through to the page behind this overlay instead of staying contained
+     in this page's own scroll — invisible since this covers it, but the
+     gallery is left scrolled somewhere else once it closes. body's own
+     overflow:hidden (see body.project-page-open below) isn't enough on
+     its own to stop that chaining. */
+  overscroll-behavior: contain;
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
+}
+
+/* Locks the gallery page's own scroll while this is open — see
+   ProjectPage.show()/close() for why (scroll chaining into the hidden
+   background otherwise silently moves it). Same technique as
+   body.journal-detail-open. */
+body.project-page-open {
+  overflow: hidden;
 }
 
 /* Deliberately no transition: the WebGL hero (behind this, see
