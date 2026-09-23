@@ -4,7 +4,6 @@ import { computeGalleryLayout } from './layout.js'
 import { Tile } from './Tile.js'
 import { DetailView } from './DetailView.js'
 import { ProjectPage } from './ProjectPage.js'
-import { Carousel3DView } from './Carousel3DView.js'
 import { JournalView } from './JournalView.js'
 import { clamp, smoothstep, damp } from './math.js'
 
@@ -31,7 +30,7 @@ export class GalleryApp {
     this.loadedCount = 0
     this.readyFired = false
 
-    this.viewMode = 'grid' // 'grid' (the hybrid gallery) | 'fulltext' | 'carousel3d'
+    this.viewMode = 'grid' // 'grid' (the hybrid gallery) | 'fulltext' (title list)
     this._dragScroll = null
     this._dragScrollMoved = false
     this._modeVisibilityTimer = null
@@ -77,11 +76,6 @@ export class GalleryApp {
     this.projectPage = new ProjectPage(this, {
       onClose: (tile) => this._handleProjectClose(tile),
     })
-    this.carousel3D = new Carousel3DView({
-      items: this.items,
-      onOpenItem: (index) => this._handleCarousel3DOpen(index),
-    })
-    this._openedFrom3D = false
     this.journal = new JournalView({ items: journalItems, root: document.getElementById('journal') })
     this._bindEvents()
 
@@ -314,20 +308,16 @@ export class GalleryApp {
     this.fulltextList.addEventListener('pointermove', this._onFulltextMove)
   }
 
-  // Cycles the header toggle through the 3 view modes: the hybrid gallery
-  // (computeGalleryLayout — a mix of aligned columns and masonry-packed,
-  // proportion-true cell heights), the full-text magazine list, and the
-  // scroll-driven 3D carousel (GSAP, see Carousel3DView.js) — gallery ->
-  // fulltext -> carousel3d -> gallery. Entering/leaving full text just
-  // swaps the WebGL canvas for the DOM list since the tiles are fully
-  // hidden either way, so a snap is unnoticeable. Entering the 3D carousel
-  // lazy-loads GSAP the first time (see loadGsap.js), so it's the one
-  // async step in this cycle.
+  // Toggles the header button between the two view modes: the hybrid
+  // gallery (computeGalleryLayout — a mix of aligned columns and
+  // masonry-packed, proportion-true cell heights) and the full-text
+  // magazine list. Entering/leaving full text just swaps the WebGL canvas
+  // for the DOM list since the tiles are fully hidden either way, so a
+  // snap is unnoticeable.
   toggleViewMode() {
     if (this.detailView.isActive || this._modeSwitching) return
     if (this.viewMode === 'grid') this._enterFulltext()
-    else if (this.viewMode === 'fulltext') this._enterCarousel3D()
-    else this._exitCarousel3DToGrid()
+    else this._exitFulltextToGrid()
   }
 
   _setMode(mode) {
@@ -372,10 +362,9 @@ export class GalleryApp {
 
   // Reverse of the above: canvas reappears immediately and tiles reveal
   // back in while the title lines fade out; the list's container is only
-  // actually torn down (display: none) once that fade has had time to play.
-  // Tears down fulltext-specific DOM state regardless of what's next (back
-  // to grid, or straight on to the 3D carousel) — the delayed class removal
-  // still only fires once nothing has re-entered fulltext in the meantime.
+  // actually torn down (display: none) once that fade has had time to play
+  // — the delayed class removal only fires once nothing has re-entered
+  // fulltext in the meantime.
   _leaveFulltext() {
     clearTimeout(this._modeVisibilityTimer)
     this.fulltextList.classList.remove('is-revealed')
@@ -398,64 +387,6 @@ export class GalleryApp {
     // layout, then reveal them back in.
     this._buildLayout(false)
     this._animateTilesReveal(1)
-  }
-
-  // Lazy-loads GSAP the first time (see loadGsap.js) and hands off entirely
-  // to Carousel3DView — the WebGL loop is fully stopped rather than just
-  // hidden like full text, since nothing in this mode reads scroll/tilt
-  // from it. Coming from fulltext skips straight past the grid.
-  async _enterCarousel3D() {
-    if (this.viewMode === 'fulltext') this._leaveFulltext()
-    this._setMode('carousel3d')
-    window.scrollTo(0, 0)
-    this.stop()
-    this.canvasRoot.classList.add('is-hidden')
-
-    this._modeSwitching = true
-    try {
-      await this.carousel3D.enter()
-    } finally {
-      this._modeSwitching = false
-    }
-  }
-
-  _exitCarousel3DToGrid() {
-    this.carousel3D.exit()
-    this._setMode('grid')
-    window.scrollTo(0, 0)
-    this.canvasRoot.classList.remove('is-hidden')
-    this._buildLayout(false)
-    this._animateTilesReveal(1)
-    this.start()
-  }
-
-  // A 3D-carousel scene's title has no WebGL tile behind it at all (canvas
-  // is fully hidden in this mode) — play the carousel's own dramatic
-  // fly-away first (see Carousel3DView.playOpenTransition, ported from the
-  // reference demo), then hand off to the project page, passing a plain
-  // {item} in place of a real Tile since ProjectPage.open only ever reads
-  // .item off it. The carousel's whole GSAP/ScrollSmoother world is killed
-  // once that finishes (see Carousel3DView.exit) rather than merely hidden,
-  // since ScrollTrigger's normalizeScroll otherwise keeps intercepting
-  // wheel/touch input globally and would fight the project page's own
-  // scroll container.
-  _handleCarousel3DOpen(index) {
-    if (this.detailView.isActive || this._modeSwitching) return
-    const item = this.items[index]
-    if (!item) return
-    // Reuses the toggle's own busy flag: the fly-away runs a couple of
-    // seconds, during which another title click or the mode toggle would
-    // otherwise race it (a second concurrent fly-away, or exiting the view
-    // out from under the animation still playing).
-    this._modeSwitching = true
-    this._openedFrom3D = true
-    this.carousel3D.playOpenTransition(index).then(() => {
-      this.carousel3D.exit()
-      this.projectPage.open({ item }).then(() => {
-        this.projectPage.show()
-        this._modeSwitching = false
-      })
-    })
   }
 
   // Opening a project from a title has no on-screen tile to zoom from, so
@@ -500,7 +431,7 @@ export class GalleryApp {
   }
 
   _handleClick() {
-    if (this.viewMode === 'fulltext' || this.viewMode === 'carousel3d') return
+    if (this.viewMode === 'fulltext') return
     if (this.detailView.state !== 'idle') return
     const tile = this.detailView.pick(this.mouseNDC)
     if (tile) this.detailView.open(tile)
@@ -523,13 +454,6 @@ export class GalleryApp {
   }
 
   _handleProjectClose() {
-    // No WebGL tile/zoom was involved in opening this one — just bring the
-    // 3D carousel's GSAP world back (re-created fresh, see Carousel3DView).
-    if (this._openedFrom3D) {
-      this._openedFrom3D = false
-      this.carousel3D.enter()
-      return
-    }
     // Mesh must be visible and positioned *before* the loop resumes —
     // start() renders synchronously, so doing this after it would render
     // one frame with neither the mesh nor the DOM page visible (a flash).
@@ -561,13 +485,6 @@ export class GalleryApp {
       // Tiles stay hidden and wherever they were — only the list's own
       // (now reflowed) height needs to keep driving the scroll range.
       this.spacer.style.height = `${Math.round(this.fulltextView.offsetHeight)}px`
-    } else if (this.viewMode === 'carousel3d') {
-      // Tiles are irrelevant here — the carousels' own fluid card size
-      // changed too, so their 3D radius needs recomputing to match (see
-      // Carousel3DView.handleResize) before ScrollTrigger just re-measures
-      // positions/heights.
-      this.carousel3D.handleResize()
-      window.ScrollTrigger?.refresh()
     } else {
       this._buildLayout(false)
     }
@@ -667,12 +584,12 @@ export class GalleryApp {
     // tilt value, just applied as a CSS transform on the title list instead.
     if (this.viewMode === 'fulltext') {
       this.fulltextList.style.transform = `rotateX(${this.tiltCurrent}rad)`
-    } else if (this.viewMode === 'grid') {
-      // The journal strip only sits in normal document flow below the
-      // gallery in this mode (hidden via CSS the other two) — updating it
-      // elsewhere would just read a detached/zero-size rect.
-      this.journal.update(dt)
     }
+    // The journal strip sits in normal document flow below whichever of
+    // the two modes is showing (grid or fulltext both scroll straight
+    // into it now — see the toggleViewMode change dropping the old 3rd
+    // mode), so it needs updating in either case, not just grid.
+    this.journal.update(dt)
 
     const speedFactor = clamp(Math.abs(velocity) * 0.00006, 0, 0.035)
     const targetScale = 1 - speedFactor
@@ -781,7 +698,6 @@ export class GalleryApp {
     this.fulltextList.removeEventListener('pointerleave', this._onFulltextLeave)
     this.fulltextList.removeEventListener('pointermove', this._onFulltextMove)
     this.detailView.dispose()
-    this.carousel3D.dispose()
     this.journal.dispose()
     this.tiles.forEach((t) => t.dispose())
     this.tileLabels.remove()

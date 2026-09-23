@@ -105,19 +105,18 @@ body {
   transition: opacity 0.3s ease;
 }
 
-/* Full-text and 3D modes are meant to read as just the list/carousel —
-   logo, subtitle, scroll hint and footer all step out of the way while
-   either is active (see GalleryApp.toggleViewMode, which toggles this
-   class on <body> for any non-gallery mode). */
+/* Full-text mode reads as just the title list — logo, subtitle and the
+   grid's own scroll hint step out of the way (see GalleryApp.toggleViewMode,
+   which toggles this class on <body>). The Journal and footer stay in the
+   page below the list, same as in grid mode, so scrolling past the list
+   still reaches them — full-text only replaces the grid itself. */
 body.overview-active .site-mark,
 body.overview-active .site-subtitle {
   opacity: 0;
   pointer-events: none;
 }
 
-body.overview-active .site-footer,
 body.overview-active .scroll-hint,
-body.overview-active .journal,
 body.overview-active .gallery-tile-labels {
   display: none;
 }
@@ -125,7 +124,7 @@ body.overview-active .gallery-tile-labels {
 /* Press-and-drag scroll hint for the gallery layout (see
    GalleryApp._startDragScroll) — grab/grabbing cursor, mirrors the
    affordance a draggable canvas would normally show. .overview-active is
-   only ever set for full-text/3D, so :not() here isolates the gallery. */
+   only ever set for full-text mode, so :not() here isolates the gallery. */
 body:not(.overview-active) {
   cursor: grab;
 }
@@ -141,10 +140,11 @@ body.is-drag-scrolling {
   transition: opacity 0.3s ease;
 }
 
-/* View-mode toggle — cycles gallery -> full-text -> 3D -> gallery (see
-   GalleryApp.toggleViewMode). Icon shown reflects the current mode: the
-   2x2 squares (normal) in gallery mode, the same squares pulled together
-   in 3D mode, the small rotated diamond in full-text mode. */
+/* View-mode toggle — switches between the gallery grid and the full-text
+   title list (see GalleryApp.toggleViewMode). Icon shown reflects the
+   current mode: the 2x2 squares in grid mode, three left-aligned lines of
+   decreasing width (a paragraph of titles, not a hamburger menu — those
+   are 3 equal-width, evenly-spaced bars) in full-text mode. */
 .overview-toggle {
   /* Safari draws native button chrome (background/border/min-size) over
      anything here unless appearance is explicitly reset — without this
@@ -183,12 +183,11 @@ body.is-drag-scrolling {
   opacity: 0;
 }
 
-.overview-toggle[data-mode='grid'] .overview-toggle-icon--grid,
-.overview-toggle[data-mode='carousel3d'] .overview-toggle-icon--grid {
+.overview-toggle[data-mode='grid'] .overview-toggle-icon--grid {
   opacity: 1;
 }
 
-.overview-toggle[data-mode='fulltext'] .overview-toggle-icon--cube {
+.overview-toggle[data-mode='fulltext'] .overview-toggle-icon--lines {
   opacity: 1;
 }
 
@@ -204,36 +203,34 @@ body.is-drag-scrolling {
   width: 100%;
   height: 100%;
   background: #000;
-  transition: transform 0.3s cubic-bezier(0.65, 0, 0.35, 1);
 }
 
-.overview-toggle[data-mode='carousel3d'] .overview-toggle-icon--grid span:nth-child(1) {
-  transform: translate(2px, 2px) scale(0.8);
-}
-.overview-toggle[data-mode='carousel3d'] .overview-toggle-icon--grid span:nth-child(2) {
-  transform: translate(-2px, 2px) scale(0.8);
-}
-.overview-toggle[data-mode='carousel3d'] .overview-toggle-icon--grid span:nth-child(3) {
-  transform: translate(2px, -2px) scale(0.8);
-}
-.overview-toggle[data-mode='carousel3d'] .overview-toggle-icon--grid span:nth-child(4) {
-  transform: translate(-2px, -2px) scale(0.8);
-}
-
-/* Small rotated-square (diamond) glyph shown in fulltext mode — visually
-   distinct from the flat grid icon. */
-.overview-toggle-icon--cube {
+/* Three left-aligned lines, each a little shorter than the last — reads as
+   a paragraph/list of titles at a glance, deliberately not the uniform,
+   full-width bars of a hamburger menu (this doesn't open a menu). */
+.overview-toggle-icon--lines {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   justify-content: center;
+  gap: 4px;
 }
 
-.overview-toggle-icon--cube span {
+.overview-toggle-icon--lines span {
   display: block;
-  width: 11px;
-  height: 11px;
+  height: 2px;
   background: #000;
-  transform: rotate(45deg);
+}
+
+.overview-toggle-icon--lines span:nth-child(1) {
+  width: 100%;
+}
+
+.overview-toggle-icon--lines span:nth-child(2) {
+  width: 72%;
+}
+
+.overview-toggle-icon--lines span:nth-child(3) {
+  width: 46%;
 }
 
 .scroll-hint {
@@ -1104,120 +1101,4 @@ body.journal-detail-open {
   .footer-wordmark img {
     width: 94vw;
   }
-}
-
-/* --- 4th view mode: scroll-driven 3D carousel (GSAP), see Carousel3DView.js ---
-   Adapted from a Codrops "On-Scroll 3D Carousel" demo, data-driven from
-   galleryData.js instead of hardcoded scenes. Fully self-contained: its own
-   fixed wrapper/content (ScrollSmoother owns scrolling only inside this
-   subtree), so it never touches the other 3 modes' window-scroll. Titles
-   open the existing project page directly instead of the demo's own
-   preview grid. */
-.carousel3d-view {
-  display: none;
-  position: fixed;
-  inset: 0;
-  z-index: 4;
-}
-
-body.carousel3d-active .carousel3d-view {
-  display: block;
-}
-
-.c3d-wrapper {
-  position: fixed;
-  inset: 0;
-  overflow: hidden;
-}
-
-.c3d-content {
-  width: 100%;
-}
-
-.c3d-scene {
-  perspective: 900px;
-  position: relative;
-  height: 100vh;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.c3d-scene__title {
-  display: block;
-  max-width: 92vw;
-  padding: 0;
-  margin: 0;
-  border: none;
-  background: none;
-  font-family: inherit;
-  font-size: clamp(28px, 4.4vw, 64px);
-  font-weight: 300;
-  letter-spacing: -0.01em;
-  color: var(--fg);
-  top: 84%;
-  position: absolute;
-  z-index: 10;
-  cursor: pointer;
-}
-
-.c3d-scene__title .c3d-char {
-  display: inline-block;
-  transform-style: preserve-3d;
-  transform-origin: 50% 0%;
-}
-
-.c3d-carousel {
-  /* Fluid card size — was a single hard breakpoint (400px desktop /
-     260px <=700px) with the 3D rotation radius left hardcoded in JS,
-     so on any viewport in between (or below 700px) the card visibly
-     outgrew its perspective-projected footprint: huge, overflowing,
-     misaligned cards. Carousel3DView reads this computed width back
-     (offsetWidth) to size the radius, so the two now always agree. */
-  --c3d-w: clamp(200px, 30vw, 400px);
-  --c3d-h: calc(var(--c3d-w) * 1.25);
-  width: var(--c3d-w);
-  height: var(--c3d-h);
-  top: 50%;
-  left: 50%;
-  margin-top: calc(var(--c3d-h) / -2);
-  margin-left: calc(var(--c3d-w) / -2);
-  position: absolute;
-  transform-style: preserve-3d;
-  will-change: transform;
-  transform: translateZ(-550px) rotateY(0deg);
-}
-
-.c3d-scene:nth-child(even) .c3d-carousel {
-  transform: translateZ(-550px) rotateY(45deg);
-}
-
-.c3d-carousel__cell {
-  position: absolute;
-  width: var(--c3d-w);
-  height: calc(var(--c3d-h) * 1.04);
-  left: 0;
-  top: 0;
-  transform-style: preserve-3d;
-}
-
-.c3d-card {
-  width: 100%;
-  height: 100%;
-  position: relative;
-  transform-style: preserve-3d;
-}
-
-.c3d-card__face {
-  width: 100%;
-  height: 100%;
-  position: absolute;
-  backface-visibility: hidden;
-  background-size: cover;
-  background-position: 50% 50%;
-  border-radius: 4px;
-}
-
-.c3d-card__face--back {
-  transform: rotateY(180deg);
 }
