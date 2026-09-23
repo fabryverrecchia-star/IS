@@ -39,10 +39,14 @@
     </div>
 
     <!-- Real, vertically-scrolling project page shown after the WebGL
-         click-to-zoom lands (see DetailView.js / heroLayout.js). Only the
-         hero borrows the Journal detail panel's proportions: a full-height,
-         crop-fit cover on the left 75% with a fixed info panel on the
-         right 25%. Any extra images stack normally below the hero. -->
+         click-to-zoom lands (see DetailView.js / heroLayout.js). The hero
+         borrows the Journal detail panel's proportions but at its own
+         native aspect ratio, never cropped: full-height when that fits the
+         width, else full-width and letterboxed (wide video). A fixed info
+         panel fills whatever width is left over on the right, or — once
+         there's too little room, including the full-width case — drops
+         below the hero in normal flow instead (see .is-stacked). Any extra
+         images stack normally below the hero either way. -->
     <div class="project-page" id="project-page">
       <a href="#" class="project-back" id="project-back">← Selected Works</a>
       <div class="project-media" id="project-media"></div>
@@ -59,6 +63,17 @@
               <dd id="project-year"></dd>
             </div>
           </dl>
+          <!-- Placeholder CTAs (see ProjectButtons.js for the WebGL
+               fill/shine hover layer painted behind them). -->
+          <div class="project-info-actions" id="project-info-actions">
+            <canvas class="project-btn-canvas"></canvas>
+            <button class="project-btn project-btn--outline" type="button">
+              <span class="project-btn-label">En savoir plus</span>
+            </button>
+            <button class="project-btn project-btn--solid" type="button">
+              <span class="project-btn-label">Acheter en ligne</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>

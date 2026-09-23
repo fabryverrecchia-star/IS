@@ -411,13 +411,21 @@ body.fulltext-active .fulltext-view {
 }
 
 /* --- project page (shown after the entrance zoom) ---
-   Only the hero itself borrows the Journal detail panel's proportions — a
-   full-height, crop-fit cover on the left 75% (see heroLayout.js for why
-   the WebGL zoom already lands exactly here) — with a fixed info panel on
-   the right 25%. Everything else stays the original page: a normal
-   vertically-scrolling document, hero at the top, any extra images
-   stacked below it at their own natural size. The Journal's horizontal
-   filmstrip scroll is that section's own thing, not this one's. */
+   The hero itself borrows the Journal detail panel's layout — a full-height
+   cover on the left with a fixed info panel on the right — but at its own
+   native aspect ratio, never cropped (see heroLayout.js, which both this
+   and the WebGL zoom read from, via the --hero-width/--hero-height/
+   --info-width custom properties ProjectPage._applyHeroLayout sets on
+   .project-page). Most covers here are portrait, so the sidebar is
+   typically much wider than a flat 25% would give it. A landscape cover
+   wide enough to leave no real room for that sidebar (wide video, mainly)
+   instead goes full-width and letterboxed, with .is-stacked dropping the
+   info panel into normal flow below it — the same fallback used at narrow
+   (phone) viewports, now driven by the same math instead of a breakpoint.
+   Everything else stays the original page: a normal vertically-scrolling
+   document, hero at the top, any extra images stacked below it at their
+   own natural size. The Journal's horizontal filmstrip scroll is that
+   section's own thing, not this one's. */
 
 .project-page {
   position: fixed;
@@ -437,6 +445,11 @@ body.fulltext-active .fulltext-view {
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
+  /* Fallback only — open() always sets real px values before this becomes
+     visible (see ProjectPage._applyHeroLayout). */
+  --hero-width: 75%;
+  --hero-height: 100vh;
+  --info-width: 25%;
 }
 
 /* Locks the gallery page's own scroll while this is open — see
@@ -477,20 +490,22 @@ body.project-page-open {
 }
 
 .project-media {
-  width: 75%;
-  background: #eee;
+  width: var(--hero-width);
 }
 
-/* The clicked cover: sized to the viewport itself (not its own aspect
-   ratio) and crop-fit, matching the tile shader's cover-fit UVs so the
-   WebGL -> DOM hand-off is pixel-identical. Fixed to 100vh rather than a
-   percentage since .project-media is back in normal document flow (its
-   own height now just follows its content, hero + extras stacked). */
+.project-page.is-stacked .project-media {
+  width: 100%;
+}
+
+/* The clicked cover, at its own native aspect ratio — never cropped, see
+   heroLayout.js. object-fit: contain is a safety net only (the box already
+   matches the ratio exactly); it guards against any rounding or a mismatch
+   between the declared aspect and the actual file. */
 .project-hero-media {
   display: block;
   width: 100%;
-  height: 100vh;
-  object-fit: cover;
+  height: var(--hero-height);
+  object-fit: contain;
 }
 
 /* Extra images/screenshots: normal page scroll below the hero, own
@@ -513,18 +528,31 @@ body.project-page-open {
   position: fixed;
   right: 0;
   top: 0;
-  width: 25%;
+  width: var(--info-width);
   height: 100%;
-  display: flex;
-  align-items: center;
   overflow-y: auto;
   background: var(--bg);
   border-left: 1px solid rgba(20, 20, 15, 0.12);
 }
 
+/* No room for a persistent side panel — falls back into normal document
+   flow, right after the hero/extras (see .project-page.is-stacked above
+   for when this triggers: a phone-width viewport, or a cover wide enough
+   at its own aspect ratio to leave no real width for a sidebar). */
+.project-page.is-stacked .project-info {
+  position: static;
+  width: 100%;
+  height: auto;
+  border-left: none;
+  border-top: 1px solid rgba(20, 20, 15, 0.12);
+}
+
 .project-info-inner {
   width: 100%;
+  height: 100%;
   padding: clamp(28px, 4vw, 56px);
+  display: flex;
+  flex-direction: column;
 }
 
 .project-info-title {
@@ -570,20 +598,72 @@ body.project-page-open {
   text-align: right;
 }
 
-@media (max-width: 700px) {
-  .project-media {
-    width: 100%;
-  }
+/* Placeholder CTAs, pinned to the bottom of the panel — margin-top: auto
+   only has extra flex space to consume in the fixed-sidebar layout (see
+   .project-info-inner); in .is-stacked flow it just trails the meta rows
+   with its own top margin instead. The WebGL fill/shine/magnet layer (see
+   ProjectButtons.js) paints behind the two real buttons on a single canvas
+   sized to this row; label text stays real DOM for crisp type and a11y. */
+.project-info-actions {
+  position: relative;
+  margin-top: auto;
+  padding-top: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
 
-  /* No room for a persistent side panel on a phone — falls back into the
-     normal document flow, right after the hero/extras. */
-  .project-info {
-    position: static;
-    width: 100%;
-    height: auto;
-    border-left: none;
-    border-top: 1px solid rgba(20, 20, 15, 0.12);
-  }
+.project-btn-canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.project-btn {
+  position: relative;
+  z-index: 1;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  height: 52px;
+  padding: 0 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  /* Plain CSS baseline in case the WebGL layer (see ProjectButtons.js)
+     fails to init — it paints the identical shape at rest on top of this
+     when it's running, so there's no visible doubling either way. */
+  background: none;
+  border: 1.5px solid var(--fg);
+}
+
+.project-btn--solid {
+  background: var(--fg);
+  border-color: var(--fg);
+}
+
+.project-btn-label {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--fg);
+  transition: color 0.3s ease;
+  pointer-events: none;
+}
+
+.project-btn--solid .project-btn-label {
+  color: #fff;
+}
+
+/* Delayed slightly so the WebGL ink-fill sweep (see ProjectButtons.js) has
+   time to actually cover the label's own area first — flipping the color
+   immediately would show white text on a still-mostly-unfilled button for
+   a beat, worst-case if the cursor entered from a far corner. */
+.project-btn--outline.is-hovering .project-btn-label {
+  color: #fff;
+  transition-delay: 0.15s;
 }
 
 .loader {

@@ -1,3 +1,6 @@
+import { computeHeroLayout } from './heroLayout.js'
+import { ProjectButtons } from './ProjectButtons.js'
+
 // Resolves once the element has an actual frame ready to paint — an image
 // decoded, or a video past HAVE_CURRENT_DATA. A capped wait keeps a stalled
 // asset from blocking the hand-off indefinitely.
@@ -41,10 +44,21 @@ export class ProjectPage {
     this.yearRow = document.getElementById('project-year-row')
     this.media = document.getElementById('project-media')
 
+    this.buttons = new ProjectButtons(document.getElementById('project-info-actions'))
+
     this.backLink.addEventListener('click', (e) => {
       e.preventDefault()
       this.close()
     })
+
+    // The hero's own aspect ratio decides how much width it needs (see
+    // heroLayout.js) — a window resize while the page is open can flip
+    // that between the sidebar and stacked layouts, so it has to be able
+    // to recompute, not just reflow via CSS percentages like before.
+    this._onResize = () => {
+      if (this.isOpen) this._applyHeroLayout()
+    }
+    window.addEventListener('resize', this._onResize)
 
     this._onScroll = () => this._updateParallax()
     this.root.addEventListener('scroll', this._onScroll, { passive: true })
@@ -73,10 +87,9 @@ export class ProjectPage {
     return this.tile !== null
   }
 
-  // The hero is sized to the viewport itself (not its own aspect ratio)
-  // and crop-fit (see .project-hero-media), matching the tile shader's
-  // cover-fit UVs so the WebGL -> DOM hand-off is pixel-identical — no
-  // per-item layout math needed here for that part any more.
+  // The hero is sized to its own native aspect ratio (no crop) — see
+  // heroLayout.js, the same math DetailView's WebGL zoom already lands on,
+  // so the DOM hand-off is pixel-identical.
   open(tile) {
     const item = tile.item
     this.tile = tile
@@ -87,6 +100,7 @@ export class ProjectPage {
     this.yearEl.textContent = item.year || ''
     this.yearRow.hidden = !item.year
 
+    this._applyHeroLayout()
     this.media.innerHTML = ''
 
     let heroEl
@@ -163,6 +177,7 @@ export class ProjectPage {
   show() {
     this.root.classList.add('is-visible')
     document.body.classList.add('project-page-open')
+    this.buttons.enable()
   }
 
   close() {
@@ -172,11 +187,30 @@ export class ProjectPage {
       this._fullVideoEl.load()
       this._fullVideoEl = null
     }
+    this.buttons.disable()
     this.root.classList.remove('is-visible')
     document.body.classList.remove('project-page-open')
     const tile = this.tile
     this.tile = null
     this.onClose(tile)
+  }
+
+  // Recomputes the hero/info split for the open item's aspect ratio (see
+  // heroLayout.js) and hands the numbers to CSS as custom properties, so
+  // the rest of the layout (extras, the info column, the .is-stacked
+  // fallback) stays plain, declarative CSS rather than JS-positioned.
+  _applyHeroLayout() {
+    const aspect = this.tile.item.aspect
+    const layout = computeHeroLayout({
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+      aspect,
+    })
+    this.root.classList.toggle('is-stacked', layout.stacked)
+    this.root.style.setProperty('--hero-width', `${layout.width}px`)
+    this.root.style.setProperty('--hero-height', `${layout.height}px`)
+    this.root.style.setProperty('--info-width', layout.stacked ? '100%' : `${layout.infoWidth}px`)
+    this.buttons.handleResize()
   }
 
   _updateParallax() {
