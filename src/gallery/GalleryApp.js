@@ -18,6 +18,13 @@ const MODE_REVEAL_MAX_STAGGER = 0.3 // s, matches the cap in _animateTilesReveal
 const MODE_REVEAL_DURATION = 0.6 // s, matches Tile's _modeRevealDuration
 const MODE_TRANSITION_MS = (MODE_REVEAL_MAX_STAGGER + MODE_REVEAL_DURATION) * 1000
 const TILE_LABEL_OFFSET_Y = 14 // px below the tile's projected bottom edge
+const MODE_RECEDE_Z = 420 // world units the grid pulls back on the switch into full-text
+const MODE_RECEDE_SCALE = 0.26 // extra shrink at full recede, on top of the pull-back
+// Tiles themselves wipe out over ~100-150ms (see Tile._modeRevealDuration
+// and its ease-in curve, which front-loads most of the fade almost
+// immediately) — this has to keep pace with that or the recede would
+// still be barely started by the time there's nothing left to see it on.
+const MODE_RECEDE_LAMBDA = 16
 
 export class GalleryApp {
   constructor(root, { onProgress, onReady } = {}) {
@@ -50,6 +57,8 @@ export class GalleryApp {
     this.scrollSmoothed = 0
     this.scrollPrev = 0
     this.tiltCurrent = 0
+    this.modeRecede = 0 // 0 = grid at rest, 1 = fully pulled back into perspective (see toggleViewMode)
+    this.modeRecedeTarget = 0
 
     this.mouseNDC = new THREE.Vector2(9999, 9999)
     this.mouseWorld = new THREE.Vector3()
@@ -344,6 +353,10 @@ export class GalleryApp {
     clearTimeout(this._modeVisibilityTimer)
     document.body.classList.add('fulltext-active')
     window.scrollTo(0, 0)
+    // Pulls the whole grid back into the distance (see MODE_RECEDE_* and
+    // its damped application in _update) in step with the tile wipe below —
+    // a WebGL "out" flourish rather than just a flat fade/wipe.
+    this.modeRecedeTarget = 1
     // The list's own rendered height (its content grows with clamp()'d
     // font sizes) is what should drive the real scrollbar range while
     // it's showing, not whatever the mosaic layout last computed.
@@ -380,6 +393,10 @@ export class GalleryApp {
     this._setMode('grid')
     window.scrollTo(0, 0)
     this._leaveFulltext()
+    // Reverses the pull-back from _enterFulltext — the grid flies back in
+    // from the distance as tiles wipe-reveal below, symmetric with the
+    // "out" transition on the way in.
+    this.modeRecedeTarget = 0
 
     this.canvasRoot.classList.remove('is-hidden')
     // Tiles were hidden the whole time fulltext was showing, so there's
@@ -580,6 +597,12 @@ export class GalleryApp {
     this.contentGroup.position.y = this.scrollSmoothed
     this.contentGroup.rotation.x = this.tiltCurrent
 
+    // WebGL "out" transition between the two view modes (see
+    // toggleViewMode/_enterFulltext/_exitFulltextToGrid): the whole grid
+    // pulls back into the distance rather than just wiping away flat.
+    this.modeRecede = damp(this.modeRecede, this.modeRecedeTarget, MODE_RECEDE_LAMBDA, dt)
+    this.contentGroup.position.z = -this.modeRecede * MODE_RECEDE_Z
+
     // Full-text view has no WebGL content of its own — same scroll-velocity
     // tilt value, just applied as a CSS transform on the title list instead.
     if (this.viewMode === 'fulltext') {
@@ -592,7 +615,7 @@ export class GalleryApp {
     this.journal.update(dt)
 
     const speedFactor = clamp(Math.abs(velocity) * 0.00006, 0, 0.035)
-    const targetScale = 1 - speedFactor
+    const targetScale = (1 - speedFactor) * (1 - this.modeRecede * MODE_RECEDE_SCALE)
     this.contentGroup.scale.setScalar(damp(this.contentGroup.scale.x, targetScale, 6, dt))
 
     // Titles track their tile's actual projected screen position (scroll,

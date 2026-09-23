@@ -141,10 +141,11 @@ body.is-drag-scrolling {
 }
 
 /* View-mode toggle — switches between the gallery grid and the full-text
-   title list (see GalleryApp.toggleViewMode). Icon shown reflects the
-   current mode: the 2x2 squares in grid mode, three left-aligned lines of
+   title list (see GalleryApp.toggleViewMode). Icon shown reflects where
+   the click leads, not the current mode: three left-aligned lines of
    decreasing width (a paragraph of titles, not a hamburger menu — those
-   are 3 equal-width, evenly-spaced bars) in full-text mode. */
+   are 3 equal-width, evenly-spaced bars) while in grid mode, the 2x2
+   squares while already in the title list. */
 .overview-toggle {
   /* Safari draws native button chrome (background/border/min-size) over
      anything here unless appearance is explicitly reset — without this
@@ -183,11 +184,14 @@ body.is-drag-scrolling {
   opacity: 0;
 }
 
-.overview-toggle[data-mode='grid'] .overview-toggle-icon--grid {
+/* Shows the icon for where the click takes you, not where you already
+   are: the lines glyph (title list) while in grid mode, the grid glyph
+   while already in the title list. */
+.overview-toggle[data-mode='fulltext'] .overview-toggle-icon--grid {
   opacity: 1;
 }
 
-.overview-toggle[data-mode='fulltext'] .overview-toggle-icon--lines {
+.overview-toggle[data-mode='grid'] .overview-toggle-icon--lines {
   opacity: 1;
 }
 
