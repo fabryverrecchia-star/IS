@@ -493,8 +493,12 @@ body.project-page-open {
   width: var(--hero-width);
 }
 
+/* Stacked covers the full width case (--hero-width already computes to
+   100%, see heroLayout.js) as well as the forced-centered square/vertical
+   video case (--hero-width stays its own native, narrower width there) —
+   the auto margins only do anything in the latter. */
 .project-page.is-stacked .project-media {
-  width: 100%;
+  margin: 0 auto;
 }
 
 /* The clicked cover, at its own native aspect ratio — never cropped, see

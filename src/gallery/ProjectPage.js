@@ -205,6 +205,7 @@ export class ProjectPage {
       viewportWidth: window.innerWidth,
       viewportHeight: window.innerHeight,
       aspect,
+      isVideo: this.tile.item.type === 'video',
     })
     this.root.classList.toggle('is-stacked', layout.stacked)
     this.root.style.setProperty('--hero-width', `${layout.width}px`)

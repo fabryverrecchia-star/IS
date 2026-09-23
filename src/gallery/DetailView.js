@@ -121,7 +121,7 @@ export class DetailView {
     // element with no pop.
     const { viewportWidth, viewportHeight } = this.app
     const aspect = tile.item.aspect
-    const layout = computeHeroLayout({ viewportWidth, viewportHeight, aspect })
+    const layout = computeHeroLayout({ viewportWidth, viewportHeight, aspect, isVideo: tile.item.type === 'video' })
 
     this.end.x = layout.x
     this.end.y = layout.y
