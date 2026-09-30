@@ -8,15 +8,16 @@
 // instead — letterboxed shorter than the viewport — when the ratio is too
 // wide for that to fit, landscape video being the main case. It docks to
 // the left, top-aligned, with the info panel taking whatever width is left
-// over as a fixed sidebar — except a square or vertical video (aspect <=
-// 1), which reads better centered with its own details below rather than
-// squeezed to one side of a wide sidebar: those force the same centered/
-// stacked treatment as the full-width case regardless of how much room a
-// sidebar would actually have. Once stacked either way, the caller
+// over as a fixed sidebar — except when the caller passes forceStacked
+// (a square/vertical video, or a project whose own data opts in — see
+// galleryData.js), which reads better centered with its own details below
+// rather than squeezed to one side of a wide sidebar: those force the same
+// centered/stacked treatment as the full-width case regardless of how much
+// room a sidebar would actually have. Once stacked either way, the caller
 // (ProjectPage) drops the info panel into normal document flow below.
 const MIN_INFO_WIDTH = 300 // px — below this, the sidebar stops making sense
 
-export function computeHeroLayout({ viewportWidth, viewportHeight, aspect, isVideo }) {
+export function computeHeroLayout({ viewportWidth, viewportHeight, aspect, forceStacked: forceStackedIn }) {
   let width = viewportHeight * aspect
   let height = viewportHeight
   if (width > viewportWidth) {
@@ -25,7 +26,7 @@ export function computeHeroLayout({ viewportWidth, viewportHeight, aspect, isVid
   }
 
   const infoWidth = viewportWidth - width
-  const stacked = infoWidth < MIN_INFO_WIDTH || (isVideo && aspect <= 1)
+  const stacked = infoWidth < MIN_INFO_WIDTH || forceStackedIn
 
   return {
     x: stacked ? 0 : -viewportWidth / 2 + width / 2,

@@ -121,7 +121,8 @@ export class DetailView {
     // element with no pop.
     const { viewportWidth, viewportHeight } = this.app
     const aspect = tile.item.aspect
-    const layout = computeHeroLayout({ viewportWidth, viewportHeight, aspect, isVideo: tile.item.type === 'video' })
+    const forceStacked = (tile.item.type === 'video' && aspect <= 1) || !!tile.item.forceStacked
+    const layout = computeHeroLayout({ viewportWidth, viewportHeight, aspect, forceStacked })
 
     this.end.x = layout.x
     this.end.y = layout.y
@@ -148,6 +149,20 @@ export class DetailView {
   // is a hard cut between two identical-looking pixels rather than a gap.
   hideMesh() {
     this.mesh.visible = false
+  }
+
+  // Re-points activeTile/the mesh's own texture at a different tile without
+  // animating — used when the project page swaps straight to another
+  // project via its "next project" teaser (see
+  // GalleryApp._handleProjectNext) rather than closing back to the grid
+  // first. The mesh stays hidden throughout (state never leaves 'project'),
+  // this just keeps it in sync so a later close() zooms out to the newly
+  // active tile's grid position with its own image, not the one originally
+  // clicked into.
+  retarget(tile) {
+    this.activeTile = tile
+    this.material.uniforms.uMap.value = tile.uniforms.uMap.value
+    this.material.uniforms.uImageAspect.value = tile.item.aspect
   }
 
   // Re-shows the hero mesh at the transform ProjectPage left it at, so

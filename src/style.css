@@ -528,6 +528,60 @@ body.project-page-open {
   will-change: transform;
 }
 
+/* Teaser for the next project in gallery order, appended after the extras
+   (see ProjectPage._buildNextProjectTeaser). Wipes up into place as it's
+   scrolled into view — see .is-visible, toggled by an IntersectionObserver
+   — rather than just sitting flatly at the bottom of the page. */
+.project-next {
+  position: relative;
+  display: block;
+  width: 100%;
+  margin-top: clamp(32px, 5vw, 64px);
+  padding: 0;
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(48px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+
+.project-next.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.project-next-media {
+  display: block;
+  width: 100%;
+  height: 70vh;
+  object-fit: cover;
+}
+
+.project-next-eyebrow {
+  display: block;
+  margin-top: 24px;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fg-dim);
+}
+
+.project-next-title {
+  display: block;
+  margin-top: 8px;
+  font-size: clamp(22px, 3vw, 34px);
+  font-weight: 300;
+  letter-spacing: -0.01em;
+  color: var(--fg);
+  transition: opacity 0.25s ease;
+}
+
+.project-next:hover .project-next-title {
+  opacity: 0.6;
+}
+
 .project-info {
   position: fixed;
   right: 0;
@@ -652,6 +706,14 @@ body.project-page-open {
      when it's running, so there's no visible doubling either way. */
   background: none;
   border: 1.5px solid var(--fg);
+}
+
+/* The unconditional display:flex above otherwise wins over the browser's
+   own [hidden] default (author styles always beat the UA stylesheet
+   regardless of source order) — ProjectPage relies on toggling the hidden
+   attribute (not a class) to hide this when a project has no link. */
+.project-btn[hidden] {
+  display: none;
 }
 
 .project-btn-label {
