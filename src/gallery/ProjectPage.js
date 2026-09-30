@@ -30,12 +30,10 @@ function waitForHeroReady(el, type) {
 // it's the simplest robust way to get real page scrolling and parallax,
 // and it never has to touch the gallery's own render loop.
 export class ProjectPage {
-  constructor(app, { onClose, onNext } = {}) {
+  constructor(app, { onClose } = {}) {
     this.app = app
     this.onClose = onClose || (() => {})
-    this.onNext = onNext || (() => {})
     this.tile = null
-    this._nextObserver = null
 
     this.root = document.getElementById('project-page')
     this.backLink = document.getElementById('project-back')
@@ -166,58 +164,12 @@ export class ProjectPage {
       this.media.appendChild(wrap)
     })
 
-    this._buildNextProjectTeaser(tile)
     this.root.scrollTop = 0
     // Caller shows the page (see `show()`) only once this resolves — the
     // WebGL hero stays on screen until the DOM one actually has a frame
     // to paint, so the swap is a hard cut between two identical-looking
     // pixels instead of a fade with nothing (a white flash) in between.
     return this._heroReady
-  }
-
-  // A teaser for whatever comes next in the gallery order, appended after
-  // the extras — clicking it swaps straight to that project (see
-  // GalleryApp._handleProjectNext) without the WebGL zoom-from-grid
-  // entrance, since there's no on-screen tile to zoom from here. It wipes
-  // up into view (see .project-next in style.css) as it's scrolled to,
-  // rather than just being flatly present at the bottom.
-  _buildNextProjectTeaser(tile) {
-    const tiles = this.app.tiles
-    const index = tiles.indexOf(tile)
-    if (index === -1 || tiles.length < 2) return
-    const nextTile = tiles[(index + 1) % tiles.length]
-    const nextItem = nextTile.item
-
-    const wrap = document.createElement('button')
-    wrap.type = 'button'
-    wrap.className = 'project-next'
-
-    const img = document.createElement('img')
-    img.src = nextItem.src
-    img.alt = ''
-    img.loading = 'lazy'
-    img.className = 'project-next-media'
-    wrap.appendChild(img)
-
-    const eyebrow = document.createElement('span')
-    eyebrow.className = 'project-next-eyebrow'
-    eyebrow.textContent = 'Projet suivant'
-    wrap.appendChild(eyebrow)
-
-    const title = document.createElement('span')
-    title.className = 'project-next-title'
-    title.textContent = nextItem.title
-    wrap.appendChild(title)
-
-    wrap.addEventListener('click', () => this.onNext(nextTile))
-    this.media.appendChild(wrap)
-
-    if (this._nextObserver) this._nextObserver.disconnect()
-    this._nextObserver = new IntersectionObserver(
-      (entries) => entries.forEach((entry) => entry.isIntersecting && wrap.classList.add('is-visible')),
-      { threshold: 0.15 },
-    )
-    this._nextObserver.observe(wrap)
   }
 
   // Makes the built page visible — instant, no fade (see open()'s comment
@@ -240,10 +192,6 @@ export class ProjectPage {
       this._fullVideoEl.removeAttribute('src')
       this._fullVideoEl.load()
       this._fullVideoEl = null
-    }
-    if (this._nextObserver) {
-      this._nextObserver.disconnect()
-      this._nextObserver = null
     }
     this.buttons.disable()
     this.root.classList.remove('is-visible')

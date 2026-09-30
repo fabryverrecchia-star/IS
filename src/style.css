@@ -528,64 +528,6 @@ body.project-page-open {
   will-change: transform;
 }
 
-/* Teaser for the next project in gallery order, appended after the extras
-   (see ProjectPage._buildNextProjectTeaser). Wipes up into place as it's
-   scrolled into view — see .is-visible, toggled by an IntersectionObserver
-   — rather than just sitting flatly at the bottom of the page. The cover
-   is shown uncropped at its own native aspect ratio, same as .project-extra
-   above it (a forced height here would crop arbitrarily depending on the
-   next item's own proportions) — the top border + larger gap is what marks
-   it as a distinct CTA rather than just another extra. */
-.project-next {
-  position: relative;
-  display: block;
-  width: 100%;
-  margin-top: clamp(56px, 8vw, 96px);
-  padding-top: clamp(32px, 5vw, 56px);
-  border: none;
-  border-top: 1px solid rgba(20, 20, 15, 0.12);
-  background: none;
-  text-align: left;
-  cursor: pointer;
-  opacity: 0;
-  transform: translateY(48px);
-  transition: opacity 0.7s ease, transform 0.7s ease;
-}
-
-.project-next.is-visible {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.project-next-media {
-  display: block;
-  width: 100%;
-  height: auto;
-}
-
-.project-next-eyebrow {
-  display: block;
-  margin-top: 24px;
-  font-size: 11px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--fg-dim);
-}
-
-.project-next-title {
-  display: block;
-  margin-top: 8px;
-  font-size: clamp(22px, 3vw, 34px);
-  font-weight: 300;
-  letter-spacing: -0.01em;
-  color: var(--fg);
-  transition: opacity 0.25s ease;
-}
-
-.project-next:hover .project-next-title {
-  opacity: 0.6;
-}
-
 .project-info {
   position: fixed;
   right: 0;
