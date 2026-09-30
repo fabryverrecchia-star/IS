@@ -36,11 +36,6 @@ const rawItems = [
     description:
       'Jean-Charles de Castelbajac s’impose dès la fin des années 1970 avec une esthétique reconnaissable entre mille — palette primaire, silhouettes ludiques, et cette façon bien à lui de faire dialoguer mode et jeu. Son manteau en peluche, révélé en 1987, reste l’une de ses pièces les plus citées : c’est elle qu’il réinterprète ici pour Barbie et Ken, le temps d’une collaboration avec Mattel Creations. Sous le manteau collector, une mini-robe couverte de gribouillages assume pleinement son goût pour la couleur et la spontanéité du dessin.',
     link: 'https://creations.mattel.com/en-fr/pages/barbie-and-ken-x-jean-charles-de-castelbajac-mattel-creations',
-    // Otherwise a portrait cover this narrow (0.75) would dock into a
-    // fixed sidebar (see heroLayout.js) — full-width instead so the shoot's
-    // extras read as an obvious continuous scroll rather than a cropped
-    // column next to a mostly-empty info panel.
-    forceStacked: true,
     images: [
       { src: 'media/images/castelbajac-mattel00.jpg', aspect: 1344 / 1038 },
       { src: 'media/images/castelbajac-mattel01.jpg', aspect: 1500 / 2000 },
@@ -194,6 +189,20 @@ export const galleryItems = rawItems
 // not cropped like the card itself. Swap all of this for real news/update
 // entries once there's something to announce.
 export const journalItems = [
+  {
+    src: 'media/images/castelbajac-mattel01.jpg',
+    title: 'Barbie & Ken × Jean-Charles de Castelbajac',
+    client: 'Mattel Creations',
+    year: '2026',
+    category: 'Collaboration',
+    description:
+      'Rencontre avec Jean-Charles de Castelbajac dans son atelier, à l’occasion de sa collaboration avec Mattel Creations — le manteau en peluche de 1987 réinterprété pour Barbie et Ken.',
+    gallery: [
+      { src: 'media/images/castelbajac-mattel01.jpg', aspect: 1500 / 2000 },
+      { src: 'media/images/castelbajac-mattel04.jpg', aspect: 1500 / 2000 },
+      { src: 'media/images/castelbajac-mattel00.jpg', aspect: 1344 / 1038 },
+    ],
+  },
   {
     src: 'media/images/img62.jpg',
     title: 'Nouveau shooting — Studio',
