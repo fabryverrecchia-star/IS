@@ -42,6 +42,14 @@ const rawItems = [
       { src: 'media/images/castelbajac-mattel02.jpg', aspect: 1500 / 2000 },
       { src: 'media/images/castelbajac-mattel04.jpg', aspect: 1500 / 2000 },
       { src: 'media/images/castelbajac-mattel05.jpg', aspect: 1500 / 2000 },
+      // The dolls themselves, as delivered to Mattel Creations for the drop.
+      { src: 'media/images/castelbajac-mattel-dolls-pair.jpg', aspect: 1 },
+      { src: 'media/images/castelbajac-mattel-doll-barbie-full.jpg', aspect: 1342 / 2100 },
+      { src: 'media/images/castelbajac-mattel-doll-barbie-face.jpg', aspect: 1344 / 1038 },
+      { src: 'media/images/castelbajac-mattel-doll-barbie-dress.jpg', aspect: 1344 / 1038 },
+      { src: 'media/images/castelbajac-mattel-doll-ken-full.jpg', aspect: 1342 / 2100 },
+      { src: 'media/images/castelbajac-mattel-doll-ken-face.jpg', aspect: 1344 / 1038 },
+      { src: 'media/images/castelbajac-mattel-doll-boots.jpg', aspect: 1344 / 1038 },
     ],
   },
   {
