@@ -531,14 +531,19 @@ body.project-page-open {
 /* Teaser for the next project in gallery order, appended after the extras
    (see ProjectPage._buildNextProjectTeaser). Wipes up into place as it's
    scrolled into view — see .is-visible, toggled by an IntersectionObserver
-   — rather than just sitting flatly at the bottom of the page. */
+   — rather than just sitting flatly at the bottom of the page. The cover
+   is shown uncropped at its own native aspect ratio, same as .project-extra
+   above it (a forced height here would crop arbitrarily depending on the
+   next item's own proportions) — the top border + larger gap is what marks
+   it as a distinct CTA rather than just another extra. */
 .project-next {
   position: relative;
   display: block;
   width: 100%;
-  margin-top: clamp(32px, 5vw, 64px);
-  padding: 0;
+  margin-top: clamp(56px, 8vw, 96px);
+  padding-top: clamp(32px, 5vw, 56px);
   border: none;
+  border-top: 1px solid rgba(20, 20, 15, 0.12);
   background: none;
   text-align: left;
   cursor: pointer;
@@ -555,8 +560,7 @@ body.project-page-open {
 .project-next-media {
   display: block;
   width: 100%;
-  height: 70vh;
-  object-fit: cover;
+  height: auto;
 }
 
 .project-next-eyebrow {

@@ -190,7 +190,10 @@ export const galleryItems = rawItems
 // entries once there's something to announce.
 export const journalItems = [
   {
-    src: 'media/images/castelbajac-mattel01.jpg',
+    // Landscape studio shot (full figure, already near the card's own 4:3
+    // ratio) rather than a portrait one — the card's cover-fit crop centers
+    // vertically, which on a portrait source cuts off the face/head.
+    src: 'media/images/castelbajac-mattel00.jpg',
     title: 'Barbie & Ken × Jean-Charles de Castelbajac',
     client: 'Mattel Creations',
     year: '2026',
@@ -198,9 +201,9 @@ export const journalItems = [
     description:
       'Rencontre avec Jean-Charles de Castelbajac dans son atelier, à l’occasion de sa collaboration avec Mattel Creations — le manteau en peluche de 1987 réinterprété pour Barbie et Ken.',
     gallery: [
+      { src: 'media/images/castelbajac-mattel00.jpg', aspect: 1344 / 1038 },
       { src: 'media/images/castelbajac-mattel01.jpg', aspect: 1500 / 2000 },
       { src: 'media/images/castelbajac-mattel04.jpg', aspect: 1500 / 2000 },
-      { src: 'media/images/castelbajac-mattel00.jpg', aspect: 1344 / 1038 },
     ],
   },
   {
