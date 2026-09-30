@@ -147,6 +147,24 @@ const rawItems = [
       { src: 'media/images/project11.jpg', aspect: 1170 / 1463 },
     ],
   },
+  {
+    id: 'castelbajac-mattel',
+    type: 'image',
+    src: 'media/images/castelbajac-mattel00.jpg',
+    aspect: 1344 / 1038,
+    title: 'Barbie & Ken × Jean-Charles de Castelbajac',
+    client: 'Mattel Creations',
+    year: '',
+    description:
+      'Jean-Charles de Castelbajac s’impose dès la fin des années 1970 avec une esthétique reconnaissable entre mille — palette primaire, silhouettes ludiques, et cette façon bien à lui de faire dialoguer mode et jeu. Son manteau en peluche, révélé en 1987, reste l’une de ses pièces les plus citées : c’est elle qu’il réinterprète ici pour Barbie et Ken, le temps d’une collaboration avec Mattel Creations. Sous le manteau collector, une mini-robe couverte de gribouillages assume pleinement son goût pour la couleur et la spontanéité du dessin.',
+    images: [
+      { src: 'media/images/castelbajac-mattel01.jpg', aspect: 1500 / 2000 },
+      { src: 'media/images/castelbajac-mattel02.jpg', aspect: 1500 / 2000 },
+      { src: 'media/images/castelbajac-mattel03.jpg', aspect: 1500 / 2000 },
+      { src: 'media/images/castelbajac-mattel04.jpg', aspect: 1500 / 2000 },
+      { src: 'media/images/castelbajac-mattel05.jpg', aspect: 1500 / 2000 },
+    ],
+  },
 ]
 
 export const galleryItems = rawItems

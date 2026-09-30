@@ -42,6 +42,7 @@ export class ProjectPage {
     this.clientRow = document.getElementById('project-client-row')
     this.yearEl = document.getElementById('project-year')
     this.yearRow = document.getElementById('project-year-row')
+    this.descriptionEl = document.getElementById('project-description')
     this.media = document.getElementById('project-media')
 
     this.buttons = new ProjectButtons(document.getElementById('project-info-actions'))
@@ -99,6 +100,8 @@ export class ProjectPage {
     this.clientRow.hidden = !item.client
     this.yearEl.textContent = item.year || ''
     this.yearRow.hidden = !item.year
+    this.descriptionEl.textContent = item.description || ''
+    this.descriptionEl.hidden = !item.description
 
     this._applyHeroLayout()
     this.media.innerHTML = ''

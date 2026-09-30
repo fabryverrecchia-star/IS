@@ -602,6 +602,17 @@ body.project-page-open {
   text-align: right;
 }
 
+.project-info-description {
+  margin: 20px 0 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--fg-dim);
+}
+
+.project-info-description[hidden] {
+  display: none;
+}
+
 /* Placeholder CTAs, pinned to the bottom of the panel — margin-top: auto
    only has extra flex space to consume in the fixed-sidebar layout (see
    .project-info-inner); in .is-stacked flow it just trails the meta rows
