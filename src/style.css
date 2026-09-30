@@ -654,11 +654,6 @@ body.project-page-open {
   border: 1.5px solid var(--fg);
 }
 
-.project-btn--solid {
-  background: var(--fg);
-  border-color: var(--fg);
-}
-
 .project-btn-label {
   font-size: 11px;
   letter-spacing: 0.12em;
@@ -666,10 +661,6 @@ body.project-page-open {
   color: var(--fg);
   transition: color 0.3s ease;
   pointer-events: none;
-}
-
-.project-btn--solid .project-btn-label {
-  color: #fff;
 }
 
 /* Delayed slightly so the WebGL ink-fill sweep (see ProjectButtons.js) has

@@ -64,15 +64,13 @@
             </div>
           </dl>
           <p class="project-info-description" id="project-description" hidden></p>
-          <!-- Placeholder CTAs (see ProjectButtons.js for the WebGL
-               fill/shine hover layer painted behind them). -->
+          <!-- Opens item.link in a new tab when a project has one (see
+               ProjectPage.js) — hidden otherwise. See ProjectButtons.js for
+               the WebGL fill/shine hover layer painted behind it. -->
           <div class="project-info-actions" id="project-info-actions">
             <canvas class="project-btn-canvas"></canvas>
-            <button class="project-btn project-btn--outline" type="button">
+            <button class="project-btn project-btn--outline" id="project-link-btn" type="button" hidden>
               <span class="project-btn-label">En savoir plus</span>
-            </button>
-            <button class="project-btn project-btn--solid" type="button">
-              <span class="project-btn-label">Acheter en ligne</span>
             </button>
           </div>
         </div>

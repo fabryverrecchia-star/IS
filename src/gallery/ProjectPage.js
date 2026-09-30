@@ -43,6 +43,7 @@ export class ProjectPage {
     this.yearEl = document.getElementById('project-year')
     this.yearRow = document.getElementById('project-year-row')
     this.descriptionEl = document.getElementById('project-description')
+    this.linkBtn = document.getElementById('project-link-btn')
     this.media = document.getElementById('project-media')
 
     this.buttons = new ProjectButtons(document.getElementById('project-info-actions'))
@@ -102,6 +103,8 @@ export class ProjectPage {
     this.yearRow.hidden = !item.year
     this.descriptionEl.textContent = item.description || ''
     this.descriptionEl.hidden = !item.description
+    this.linkBtn.hidden = !item.link
+    this.linkBtn.onclick = item.link ? () => window.open(item.link, '_blank', 'noopener') : null
 
     this._applyHeroLayout()
     this.media.innerHTML = ''
