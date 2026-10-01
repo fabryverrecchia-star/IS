@@ -532,12 +532,11 @@ body.project-page-open {
    the extras as a sibling of .project-media rather than inside it (see
    ProjectPage._buildNextProjectTeaser) — a direct child of .project-page
    spans its full viewport width instead of being boxed into the narrower
-   hero column. Reachable by clicking it, or by scrolling past the very
-   bottom of the page (see ProjectPage._onWheel). Wipes up into place as
-   it's scrolled into view (.is-visible, toggled by an IntersectionObserver)
-   and fades the fixed info sidebar out of the way while it's in view (see
-   .showing-next below) so the image genuinely reaches both edges instead
-   of being covered by the panel sitting on top of it. */
+   hero column. Wipes up into place as it's scrolled into view (.is-visible,
+   toggled by an IntersectionObserver) and fades the fixed info sidebar out
+   of the way while it's in view (see .showing-next below) so the image
+   genuinely reaches both edges instead of being covered by the panel
+   sitting on top of it. */
 .project-next {
   position: relative;
   z-index: 2;
@@ -585,17 +584,18 @@ body.project-page-open {
 
 .project-next-eyebrow {
   display: block;
-  font-size: 11px;
+  font-size: clamp(13px, 1.3vw, 16px);
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 
 .project-next-title {
   display: block;
-  margin-top: 8px;
-  font-size: clamp(28px, 4vw, 48px);
+  margin-top: 12px;
+  font-size: clamp(40px, 7vw, 88px);
   font-weight: 300;
   letter-spacing: -0.01em;
+  line-height: 1.05;
 }
 
 .project-info {

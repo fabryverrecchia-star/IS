@@ -36,9 +36,7 @@ export class ProjectPage {
     this.onNext = onNext || (() => {})
     this.tile = null
     this._nextEl = null
-    this._nextTile = null
     this._nextObserver = null
-    this._nextOverscroll = 0
 
     this.root = document.getElementById('project-page')
     this.backLink = document.getElementById('project-back')
@@ -85,27 +83,6 @@ export class ProjectPage {
     this._onWheel = (e) => {
       if (!this.isOpen) return
       e.preventDefault()
-
-      // Lets scrolling past the very bottom of the page act as an
-      // alternative to clicking the next-project banner (see
-      // _buildNextProjectTeaser) — mirrors how a click there navigates,
-      // for a gesture that reads as "keep going" rather than "stop here".
-      // Requires a little sustained intent (a running total of deltaY,
-      // not just one tick) so a single momentum-scroll overshoot at the
-      // bottom doesn't fire it by accident.
-      const maxScroll = this.root.scrollHeight - this.root.clientHeight
-      const atBottom = this.root.scrollTop >= maxScroll - 1
-      if (atBottom && e.deltaY > 0 && this._nextTile) {
-        this._nextOverscroll += e.deltaY
-        if (this._nextOverscroll > 140) {
-          this._nextOverscroll = 0
-          this.onNext(this._nextTile)
-          return
-        }
-      } else {
-        this._nextOverscroll = 0
-      }
-
       this.root.scrollTop += e.deltaY
     }
     window.addEventListener('wheel', this._onWheel, { passive: false })
@@ -205,18 +182,15 @@ export class ProjectPage {
   // the full viewport width rather than being boxed into the narrower hero
   // column — see .project-next in style.css, which also fades the fixed
   // info sidebar out of the way while this is in view (.showing-next) so
-  // the image genuinely reaches both edges. Reachable by clicking it, or
-  // by scrolling past the very bottom of the page (see this._onWheel).
-  // Swaps straight to that project (see GalleryApp._handleProjectNext)
-  // without the WebGL zoom-from-grid entrance, since there's no on-screen
-  // tile to zoom from here.
+  // the image genuinely reaches both edges. Swaps straight to that project
+  // (see GalleryApp._handleProjectNext) without the WebGL zoom-from-grid
+  // entrance, since there's no on-screen tile to zoom from here.
   _buildNextProjectTeaser(tile) {
     const tiles = this.app.tiles
     const index = tiles.indexOf(tile)
     if (index === -1 || tiles.length < 2) return
     const nextTile = tiles[(index + 1) % tiles.length]
     const nextItem = nextTile.item
-    this._nextTile = nextTile
 
     const wrap = document.createElement('button')
     wrap.type = 'button'
@@ -255,6 +229,13 @@ export class ProjectPage {
     }
     wrap.addEventListener('pointermove', onMove)
     wrap.addEventListener('pointerleave', onLeave)
+    // A tap has no hover to lead into it (and the click below navigates
+    // away immediately), so pointerdown fires the same zoomed-in state
+    // right away — the click still registers the same visual feedback a
+    // mouse user gets from hovering first.
+    wrap.addEventListener('pointerdown', () => {
+      img.style.transform = 'translate3d(0, 0, 0) scale(1.08)'
+    })
 
     wrap.addEventListener('click', () => this.onNext(nextTile))
     this.root.appendChild(wrap)
