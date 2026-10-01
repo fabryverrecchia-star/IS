@@ -30,10 +30,15 @@ function waitForHeroReady(el, type) {
 // it's the simplest robust way to get real page scrolling and parallax,
 // and it never has to touch the gallery's own render loop.
 export class ProjectPage {
-  constructor(app, { onClose } = {}) {
+  constructor(app, { onClose, onNext } = {}) {
     this.app = app
     this.onClose = onClose || (() => {})
+    this.onNext = onNext || (() => {})
     this.tile = null
+    this._nextEl = null
+    this._nextTile = null
+    this._nextObserver = null
+    this._nextOverscroll = 0
 
     this.root = document.getElementById('project-page')
     this.backLink = document.getElementById('project-back')
@@ -80,6 +85,27 @@ export class ProjectPage {
     this._onWheel = (e) => {
       if (!this.isOpen) return
       e.preventDefault()
+
+      // Lets scrolling past the very bottom of the page act as an
+      // alternative to clicking the next-project banner (see
+      // _buildNextProjectTeaser) — mirrors how a click there navigates,
+      // for a gesture that reads as "keep going" rather than "stop here".
+      // Requires a little sustained intent (a running total of deltaY,
+      // not just one tick) so a single momentum-scroll overshoot at the
+      // bottom doesn't fire it by accident.
+      const maxScroll = this.root.scrollHeight - this.root.clientHeight
+      const atBottom = this.root.scrollTop >= maxScroll - 1
+      if (atBottom && e.deltaY > 0 && this._nextTile) {
+        this._nextOverscroll += e.deltaY
+        if (this._nextOverscroll > 140) {
+          this._nextOverscroll = 0
+          this.onNext(this._nextTile)
+          return
+        }
+      } else {
+        this._nextOverscroll = 0
+      }
+
       this.root.scrollTop += e.deltaY
     }
     window.addEventListener('wheel', this._onWheel, { passive: false })
@@ -108,6 +134,7 @@ export class ProjectPage {
 
     this._applyHeroLayout()
     this.media.innerHTML = ''
+    this._clearNextProjectTeaser()
 
     let heroEl
     if (item.type === 'video') {
@@ -164,12 +191,98 @@ export class ProjectPage {
       this.media.appendChild(wrap)
     })
 
+    this._buildNextProjectTeaser(tile)
     this.root.scrollTop = 0
     // Caller shows the page (see `show()`) only once this resolves — the
     // WebGL hero stays on screen until the DOM one actually has a frame
     // to paint, so the swap is a hard cut between two identical-looking
     // pixels instead of a fade with nothing (a white flash) in between.
     return this._heroReady
+  }
+
+  // A full-bleed banner for whatever comes next in the gallery order,
+  // appended as a sibling of .project-media (not inside it) so it spans
+  // the full viewport width rather than being boxed into the narrower hero
+  // column — see .project-next in style.css, which also fades the fixed
+  // info sidebar out of the way while this is in view (.showing-next) so
+  // the image genuinely reaches both edges. Reachable by clicking it, or
+  // by scrolling past the very bottom of the page (see this._onWheel).
+  // Swaps straight to that project (see GalleryApp._handleProjectNext)
+  // without the WebGL zoom-from-grid entrance, since there's no on-screen
+  // tile to zoom from here.
+  _buildNextProjectTeaser(tile) {
+    const tiles = this.app.tiles
+    const index = tiles.indexOf(tile)
+    if (index === -1 || tiles.length < 2) return
+    const nextTile = tiles[(index + 1) % tiles.length]
+    const nextItem = nextTile.item
+    this._nextTile = nextTile
+
+    const wrap = document.createElement('button')
+    wrap.type = 'button'
+    wrap.className = 'project-next'
+
+    const img = document.createElement('img')
+    img.src = nextItem.src
+    img.alt = ''
+    img.loading = 'lazy'
+    img.className = 'project-next-media'
+    wrap.appendChild(img)
+
+    const text = document.createElement('span')
+    text.className = 'project-next-text'
+    const eyebrow = document.createElement('span')
+    eyebrow.className = 'project-next-eyebrow'
+    eyebrow.textContent = 'Projet suivant'
+    const title = document.createElement('span')
+    title.className = 'project-next-title'
+    title.textContent = nextItem.title
+    text.appendChild(eyebrow)
+    text.appendChild(title)
+    wrap.appendChild(text)
+
+    // Same light hover parallax as the Journal cards (see
+    // JournalView._bindParallax) — keeps the two "browse more" surfaces on
+    // the site feeling like the same interaction language.
+    const onMove = (e) => {
+      const rect = wrap.getBoundingClientRect()
+      const px = (e.clientX - rect.left) / rect.width - 0.5
+      const py = (e.clientY - rect.top) / rect.height - 0.5
+      img.style.transform = `translate3d(${-px * 24}px, ${-py * 24}px, 0) scale(1.08)`
+    }
+    const onLeave = () => {
+      img.style.transform = 'translate3d(0, 0, 0) scale(1.04)'
+    }
+    wrap.addEventListener('pointermove', onMove)
+    wrap.addEventListener('pointerleave', onLeave)
+
+    wrap.addEventListener('click', () => this.onNext(nextTile))
+    this.root.appendChild(wrap)
+    this._nextEl = wrap
+
+    this._nextObserver = new IntersectionObserver(
+      (entries) =>
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) wrap.classList.add('is-visible')
+          this.root.classList.toggle('showing-next', entry.isIntersecting)
+        }),
+      { threshold: 0.4 },
+    )
+    this._nextObserver.observe(wrap)
+  }
+
+  _clearNextProjectTeaser() {
+    if (this._nextObserver) {
+      this._nextObserver.disconnect()
+      this._nextObserver = null
+    }
+    if (this._nextEl) {
+      this._nextEl.remove()
+      this._nextEl = null
+    }
+    this._nextTile = null
+    this._nextOverscroll = 0
+    this.root.classList.remove('showing-next')
   }
 
   // Makes the built page visible — instant, no fade (see open()'s comment
@@ -193,6 +306,7 @@ export class ProjectPage {
       this._fullVideoEl.load()
       this._fullVideoEl = null
     }
+    this._clearNextProjectTeaser()
     this.buttons.disable()
     this.root.classList.remove('is-visible')
     document.body.classList.remove('project-page-open')

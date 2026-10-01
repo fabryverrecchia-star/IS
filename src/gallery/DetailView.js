@@ -151,6 +151,20 @@ export class DetailView {
     this.mesh.visible = false
   }
 
+  // Re-points activeTile/the mesh's own texture at a different tile without
+  // animating — used when the project page swaps straight to another
+  // project via its "next project" teaser (see
+  // GalleryApp._handleProjectNext) rather than closing back to the grid
+  // first. The mesh stays hidden throughout (state never leaves 'project'),
+  // this just keeps it in sync so a later close() zooms out to the newly
+  // active tile's grid position with its own image, not the one originally
+  // clicked into.
+  retarget(tile) {
+    this.activeTile = tile
+    this.material.uniforms.uMap.value = tile.uniforms.uMap.value
+    this.material.uniforms.uImageAspect.value = tile.item.aspect
+  }
+
   // Re-shows the hero mesh at the transform ProjectPage left it at, so
   // control can hand back from DOM to WebGL with no visible pop.
   showAtCurrent() {

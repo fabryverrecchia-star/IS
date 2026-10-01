@@ -84,6 +84,7 @@ export class GalleryApp {
     this.detailView.onCloseComplete = () => this._handleDetailCloseComplete()
     this.projectPage = new ProjectPage(this, {
       onClose: (tile) => this._handleProjectClose(tile),
+      onNext: (tile) => this._handleProjectNext(tile),
     })
     this.journal = new JournalView({ items: journalItems, root: document.getElementById('journal') })
     this._bindEvents()
@@ -477,6 +478,18 @@ export class GalleryApp {
     this.detailView.showAtCurrent()
     this.detailView.close()
     this.start()
+  }
+
+  // The project page's own "next project" teaser (see
+  // ProjectPage._buildNextProjectTeaser) swaps content in place rather than
+  // closing back to the grid and re-opening — there's no on-screen tile to
+  // zoom from/to here. The WebGL hero mesh stays hidden throughout, but
+  // still needs to be re-pointed at the new tile's texture/target so that a
+  // later Escape/back click zooms out to the right grid tile instead of the
+  // one originally clicked into.
+  _handleProjectNext(tile) {
+    this.detailView.retarget(tile)
+    this.projectPage.open(tile)
   }
 
   _handleResize() {
