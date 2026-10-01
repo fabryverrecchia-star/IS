@@ -9,7 +9,7 @@ import { siteSettings as savedSettings } from '../data/siteSettings.js'
 // as a "keep honest people out" lock, not real security.
 const ADMIN_CODE = 'isma-admin-2026'
 
-const STORAGE_KEY = 'ismael-admin-draft-v1'
+const STORAGE_KEY = 'ismael-admin-draft-v2'
 
 // -----------------------------------------------------------------------
 // Gate
@@ -46,13 +46,17 @@ if (sessionStorage.getItem('ismael-admin-unlocked') === '1') {
 // State
 // -----------------------------------------------------------------------
 // Each project/journal item in state carries its data plus a generated
-// `_key` (stable React-less list identity) and its extras list normalized
-// to `_extras` (mapped back to `images`/`screenshots` on export depending
-// on type). Newly-picked files live in `pendingFiles`, keyed by the `src`
-// path they're destined for, so export can hand them back out alongside
-// the data that references them.
+// `_key` (stable list identity for expand/collapse + drag) and its extras
+// normalized to `_extras` (mapped back to `images`/`screenshots` on export
+// depending on type). A freshly-picked File — not yet an exported path on
+// disk — lives directly on the item as `_coverFile`/`_posterFile`, or per
+// extra as `_file`, so a thumbnail can preview it immediately via
+// URL.createObjectURL. The same File is also registered in `pendingFiles`,
+// keyed by the path it's destined for, so the export step can hand it back
+// out alongside the data that references it.
 let state = null
 const pendingFiles = new Map() // relative src path -> File
+let expandedKeys = new Set()
 
 function freshKey() {
   return Math.random().toString(36).slice(2, 10)
@@ -113,6 +117,10 @@ function loadState() {
   return freshState()
 }
 
+// Files can't round-trip through localStorage, so a persisted draft only
+// ever restores text fields — a picked-but-not-yet-exported image is lost
+// on reload. Acceptable: the common path is pick an image then export
+// within the same sitting, and a reload mid-edit is rare.
 function persist() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
 }
@@ -120,6 +128,10 @@ function persist() {
 // -----------------------------------------------------------------------
 // Dashboard
 // -----------------------------------------------------------------------
+function updateCounts() {
+  document.getElementById('dash-counts').textContent = `${state.projects.length} projets · ${state.journal.length} entrées Journal`
+}
+
 function initDashboard() {
   state = loadState()
 
@@ -133,9 +145,10 @@ function initDashboard() {
   })
 
   document.getElementById('reset-btn').addEventListener('click', () => {
-    if (!confirm('Repartir des données actuellement publiées sur le site ? Tes modifications non exportées seront perdues.')) return
+    if (!confirm('Repartir des données actuellement publiées sur le site ? Tes modifications non enregistrées seront perdues.')) return
     state = freshState()
     pendingFiles.clear()
+    expandedKeys.clear()
     persist()
     renderProjects()
     renderJournal()
@@ -143,13 +156,17 @@ function initDashboard() {
   })
 
   document.getElementById('add-project-btn').addEventListener('click', () => {
-    state.projects.push(projectFromSaved({ type: 'image' }))
+    const project = projectFromSaved({ type: 'image' })
+    state.projects.push(project)
+    expandedKeys.add(project._key)
     persist()
     renderProjects()
   })
 
   document.getElementById('add-journal-btn').addEventListener('click', () => {
-    state.journal.push(journalFromSaved({}))
+    const entry = journalFromSaved({})
+    state.journal.push(entry)
+    expandedKeys.add(entry._key)
     persist()
     renderJournal()
   })
@@ -178,8 +195,7 @@ function renderSettings() {
 }
 
 // -----------------------------------------------------------------------
-// Image file handling — reads a picked file's natural size to compute
-// `aspect` automatically, and queues the File for the export step.
+// Image file handling
 // -----------------------------------------------------------------------
 function suggestedPath(file) {
   const safeName = file.name.toLowerCase().replace(/[^a-z0-9.\-]+/g, '-')
@@ -199,17 +215,163 @@ function readImageAspect(file) {
   })
 }
 
-async function handleFilePick(file, srcInput, onAspect) {
-  const path = srcInput.value.trim() || suggestedPath(file)
-  srcInput.value = path
-  pendingFiles.set(path, file)
-  if (onAspect) onAspect(await readImageAspect(file))
+// Resolves what a thumbnail should show right now: a just-picked file (not
+// yet an exported path on disk) always wins over whatever path string is
+// already stored, since that's the fresher intent.
+function previewUrlFor(file, path) {
+  if (file) return URL.createObjectURL(file)
+  // admin.html sits next to index.html at the site root, same as the real
+  // gallery — so an existing item's relative path resolves the same way
+  // here as it does there, no adjustment needed.
+  if (path) return path
+  return null
+}
+
+function setThumb(imgEl, emptyEl, url) {
+  if (url) {
+    imgEl.src = url
+    imgEl.hidden = false
+    emptyEl.hidden = true
+  } else {
+    imgEl.hidden = true
+    emptyEl.hidden = false
+  }
+}
+
+// -----------------------------------------------------------------------
+// Shared card behaviour (expand/collapse, drag reorder, pin, remove)
+// -----------------------------------------------------------------------
+function bindCardChrome(card, item, index, list, renderFn) {
+  const head = card.querySelector('[data-action="toggle-expand"]')
+  const body = card.querySelector('[data-role="card-body"]')
+
+  const isExpanded = expandedKeys.has(item._key)
+  card.classList.toggle('is-expanded', isExpanded)
+  body.hidden = !isExpanded
+
+  head.addEventListener('click', () => {
+    const expanded = card.classList.toggle('is-expanded')
+    body.hidden = !expanded
+    if (expanded) expandedKeys.add(item._key)
+    else expandedKeys.delete(item._key)
+  })
+
+  card.querySelector('[data-action="remove"]').addEventListener('click', (e) => {
+    e.stopPropagation()
+    if (!confirm(`Supprimer « ${item.title || 'cet élément'} » ?`)) return
+    list.splice(index, 1)
+    persist()
+    renderFn()
+  })
+
+  // Drag reorder: only a drag that starts on the handle actually moves the
+  // card — without this check, `draggable="true"` on the whole article
+  // would turn every click-and-hold (selecting text, pressing a button)
+  // into an accidental drag.
+  card.addEventListener('dragstart', (e) => {
+    if (!e.target.closest('[data-role="drag-handle"]')) {
+      e.preventDefault()
+      return
+    }
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', String(index))
+    requestAnimationFrame(() => card.classList.add('is-dragging'))
+  })
+  card.addEventListener('dragend', () => card.classList.remove('is-dragging'))
+  card.addEventListener('dragover', (e) => {
+    e.preventDefault()
+    card.classList.add('is-drag-over')
+  })
+  card.addEventListener('dragleave', () => card.classList.remove('is-drag-over'))
+  card.addEventListener('drop', (e) => {
+    e.preventDefault()
+    card.classList.remove('is-drag-over')
+    const fromIndex = Number(e.dataTransfer.getData('text/plain'))
+    if (Number.isNaN(fromIndex) || fromIndex === index) return
+    const [moved] = list.splice(fromIndex, 1)
+    // Removing fromIndex shifts everything after it left by one, so the
+    // drop target's own index needs the same adjustment when it came after.
+    const targetIndex = fromIndex < index ? index - 1 : index
+    list.splice(targetIndex, 0, moved)
+    persist()
+    renderFn()
+  })
+}
+
+// -----------------------------------------------------------------------
+// Extras grid (shared between projects and journal entries)
+// -----------------------------------------------------------------------
+function renderExtras(card, item) {
+  const grid = card.querySelector('[data-role="extras-list"]')
+  const tileTemplate = document.getElementById('extra-tile-template')
+  grid.innerHTML = ''
+
+  item._extras.forEach((extra, i) => {
+    const node = tileTemplate.content.cloneNode(true)
+    const tile = node.querySelector('[data-role="extra-tile"]')
+    const img = tile.querySelector('[data-role="extra-img"]')
+    const empty = tile.querySelector('[data-role="extra-empty"]')
+    const fileInput = tile.querySelector('[data-field="extra-file"]')
+
+    setThumb(img, empty, previewUrlFor(extra._file, extra.src))
+
+    tile.addEventListener('click', (e) => {
+      if (e.target.closest('[data-action="remove-extra"]')) return
+      fileInput.click()
+    })
+    fileInput.addEventListener('change', async (e) => {
+      const file = e.target.files[0]
+      if (!file) return
+      const path = suggestedPath(file)
+      extra.src = path
+      extra._file = file
+      pendingFiles.set(path, file)
+      setThumb(img, empty, previewUrlFor(file, path))
+      extra.aspect = await readImageAspect(file)
+      persist()
+    })
+    tile.querySelector('[data-action="remove-extra"]').addEventListener('click', (e) => {
+      e.stopPropagation()
+      item._extras.splice(i, 1)
+      persist()
+      renderExtras(card, item)
+    })
+
+    grid.appendChild(node)
+  })
+
+  // Trailing "+" tile — clicking it opens a file picker directly, no
+  // intermediate "add a row" step.
+  const addTile = document.createElement('div')
+  addTile.className = 'extra-tile is-add-tile'
+  const addEmpty = document.createElement('span')
+  addEmpty.className = 'extra-empty'
+  addEmpty.textContent = '+'
+  addTile.appendChild(addEmpty)
+  const addInput = document.createElement('input')
+  addInput.type = 'file'
+  addInput.accept = 'image/*'
+  addInput.hidden = true
+  addTile.appendChild(addInput)
+  addTile.addEventListener('click', () => addInput.click())
+  addInput.addEventListener('change', async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    const path = suggestedPath(file)
+    const aspect = await readImageAspect(file)
+    pendingFiles.set(path, file)
+    item._extras.push({ _key: freshKey(), src: path, aspect, _file: file })
+    persist()
+    renderExtras(card, item)
+  })
+  grid.appendChild(addTile)
 }
 
 // -----------------------------------------------------------------------
 // Projects panel
 // -----------------------------------------------------------------------
 function renderProjects() {
+  updateCounts()
   const list = document.getElementById('projects-list')
   list.innerHTML = ''
   const template = document.getElementById('project-card-template')
@@ -217,7 +379,6 @@ function renderProjects() {
   state.projects.forEach((project, index) => {
     const node = template.content.cloneNode(true)
     const card = node.querySelector('[data-role="project-card"]')
-    card.dataset.key = project._key
     bindProjectCard(card, project, index)
     list.appendChild(node)
   })
@@ -226,55 +387,60 @@ function renderProjects() {
 function bindProjectCard(card, project, index) {
   const field = (name) => card.querySelector(`[data-field="${name}"]`)
   const titlePreview = field('title-preview')
+  const subtitlePreview = field('subtitle-preview')
+  const thumbImg = card.querySelector('[data-role="thumb-img"]')
+  const thumbEmpty = card.querySelector('[data-role="thumb-empty"]')
 
-  const setPreview = () => {
+  const refreshHeader = () => {
     titlePreview.textContent = project.title || '(sans titre)'
+    subtitlePreview.textContent = [project.client, project.year].filter(Boolean).join(' · ')
+    const coverUrl = previewUrlFor(project._coverFile || project._posterFile, project.type === 'video' ? project.poster : project.src)
+    setThumb(thumbImg, thumbEmpty, coverUrl)
   }
-  setPreview()
+  refreshHeader()
 
-  field('type').value = project.type
   field('title').value = project.title
   field('client').value = project.client
   field('year').value = project.year
   field('link').value = project.link
   field('description').value = project.description
-  field('loaderPinned').checked = project.loaderPinned
-  field('src').value = project.src
   field('videoSrc').value = project.type === 'video' ? project.src : ''
   field('fullSrc').value = project.fullSrc
-  field('poster').value = project.poster
+
+  const pinBtn = card.querySelector('[data-action="toggle-pin"]')
+  pinBtn.classList.toggle('is-active', project.loaderPinned)
+  pinBtn.addEventListener('click', (e) => {
+    e.stopPropagation()
+    project.loaderPinned = !project.loaderPinned
+    pinBtn.classList.toggle('is-active', project.loaderPinned)
+    persist()
+  })
 
   const imageFields = card.querySelector('[data-role="image-fields"]')
   const videoFields = card.querySelector('[data-role="video-fields"]')
-  function syncTypeVisibility() {
+  const typePills = card.querySelectorAll('[data-type]')
+  function syncType() {
     const isVideo = project.type === 'video'
     imageFields.hidden = isVideo
     videoFields.hidden = !isVideo
+    typePills.forEach((pill) => pill.classList.toggle('is-active', pill.dataset.type === project.type))
   }
-  syncTypeVisibility()
-
-  field('type').addEventListener('change', (e) => {
-    project.type = e.target.value
-    syncTypeVisibility()
-    persist()
+  syncType()
+  typePills.forEach((pill) => {
+    pill.addEventListener('click', () => {
+      project.type = pill.dataset.type
+      syncType()
+      refreshHeader()
+      persist()
+    })
   })
 
   ;['title', 'client', 'year', 'link', 'description'].forEach((key) => {
     field(key).addEventListener('input', (e) => {
       project[key] = e.target.value
-      if (key === 'title') setPreview()
+      if (key === 'title' || key === 'client' || key === 'year') refreshHeader()
       persist()
     })
-  })
-
-  field('loaderPinned').addEventListener('change', (e) => {
-    project.loaderPinned = e.target.checked
-    persist()
-  })
-
-  field('src').addEventListener('input', (e) => {
-    project.src = e.target.value
-    persist()
   })
   field('videoSrc').addEventListener('input', (e) => {
     project.src = e.target.value
@@ -284,96 +450,51 @@ function bindProjectCard(card, project, index) {
     project.fullSrc = e.target.value
     persist()
   })
-  field('poster').addEventListener('input', (e) => {
-    project.poster = e.target.value
-    persist()
-  })
 
+  // Cover picker (image projects)
+  const coverImg = card.querySelector('[data-role="cover-img"]')
+  const coverEmpty = card.querySelector('[data-role="cover-empty"]')
+  setThumb(coverImg, coverEmpty, previewUrlFor(project._coverFile, project.src))
+  card.querySelector('[data-action="pick-cover"]').addEventListener('click', () => field('src-file').click())
   field('src-file').addEventListener('change', async (e) => {
     const file = e.target.files[0]
     if (!file) return
-    await handleFilePick(file, field('src'), (aspect) => {
-      project.aspect = aspect
-      project.src = field('src').value
-      persist()
-    })
+    const path = suggestedPath(file)
+    project.src = path
+    project._coverFile = file
+    pendingFiles.set(path, file)
+    setThumb(coverImg, coverEmpty, previewUrlFor(file, path))
+    refreshHeader()
+    project.aspect = await readImageAspect(file)
+    persist()
   })
+
+  // Poster picker (video projects) — the visual thumbnail for a video
+  const posterImg = card.querySelector('[data-role="poster-img"]')
+  const posterEmpty = card.querySelector('[data-role="poster-empty"]')
+  setThumb(posterImg, posterEmpty, previewUrlFor(project._posterFile, project.poster))
+  card.querySelector('[data-action="pick-poster"]').addEventListener('click', () => field('poster-file').click())
   field('poster-file').addEventListener('change', async (e) => {
     const file = e.target.files[0]
     if (!file) return
-    await handleFilePick(file, field('poster'), () => {
-      project.poster = field('poster').value
-      persist()
-    })
+    const path = suggestedPath(file)
+    project.poster = path
+    project._posterFile = file
+    pendingFiles.set(path, file)
+    setThumb(posterImg, posterEmpty, previewUrlFor(file, path))
+    refreshHeader()
+    persist()
   })
 
-  card.querySelector('[data-action="move-up"]').addEventListener('click', () => {
-    if (index === 0) return
-    ;[state.projects[index - 1], state.projects[index]] = [state.projects[index], state.projects[index - 1]]
-    persist()
-    renderProjects()
-  })
-  card.querySelector('[data-action="move-down"]').addEventListener('click', () => {
-    if (index === state.projects.length - 1) return
-    ;[state.projects[index + 1], state.projects[index]] = [state.projects[index], state.projects[index + 1]]
-    persist()
-    renderProjects()
-  })
-  card.querySelector('[data-action="remove"]').addEventListener('click', () => {
-    if (!confirm(`Supprimer « ${project.title || 'ce projet'} » ?`)) return
-    state.projects.splice(index, 1)
-    persist()
-    renderProjects()
-  })
-
+  bindCardChrome(card, project, index, state.projects, renderProjects)
   renderExtras(card, project)
-}
-
-function renderExtras(card, item) {
-  const extrasList = card.querySelector('[data-role="extras-list"]')
-  const extraTemplate = document.getElementById('extra-row-template')
-  extrasList.innerHTML = ''
-
-  item._extras.forEach((extra, i) => {
-    const node = extraTemplate.content.cloneNode(true)
-    const row = node.querySelector('[data-role="extra-row"]')
-    const srcInput = row.querySelector('[data-field="extra-src"]')
-    const fileInput = row.querySelector('[data-field="extra-file"]')
-    srcInput.value = extra.src
-
-    srcInput.addEventListener('input', (e) => {
-      extra.src = e.target.value
-      persist()
-    })
-    fileInput.addEventListener('change', async (e) => {
-      const file = e.target.files[0]
-      if (!file) return
-      await handleFilePick(file, srcInput, (aspect) => {
-        extra.aspect = aspect
-        extra.src = srcInput.value
-        persist()
-      })
-    })
-    row.querySelector('[data-action="remove-extra"]').addEventListener('click', () => {
-      item._extras.splice(i, 1)
-      persist()
-      renderExtras(card, item)
-    })
-
-    extrasList.appendChild(node)
-  })
-
-  card.querySelector('[data-action="add-extra"]').onclick = () => {
-    item._extras.push({ _key: freshKey(), src: '', aspect: 1 })
-    persist()
-    renderExtras(card, item)
-  }
 }
 
 // -----------------------------------------------------------------------
 // Journal panel
 // -----------------------------------------------------------------------
 function renderJournal() {
+  updateCounts()
   const list = document.getElementById('journal-list')
   list.innerHTML = ''
   const template = document.getElementById('journal-card-template')
@@ -381,7 +502,6 @@ function renderJournal() {
   state.journal.forEach((entry, index) => {
     const node = template.content.cloneNode(true)
     const card = node.querySelector('[data-role="journal-card"]')
-    card.dataset.key = entry._key
     bindJournalCard(card, entry, index)
     list.appendChild(node)
   })
@@ -390,49 +510,44 @@ function renderJournal() {
 function bindJournalCard(card, entry, index) {
   const field = (name) => card.querySelector(`[data-field="${name}"]`)
   const titlePreview = field('title-preview')
-  const setPreview = () => {
-    titlePreview.textContent = entry.title || '(sans titre)'
-  }
-  setPreview()
+  const subtitlePreview = field('subtitle-preview')
+  const thumbImg = card.querySelector('[data-role="thumb-img"]')
+  const thumbEmpty = card.querySelector('[data-role="thumb-empty"]')
 
-  ;['title', 'client', 'year', 'category', 'description', 'src'].forEach((key) => {
+  const refreshHeader = () => {
+    titlePreview.textContent = entry.title || '(sans titre)'
+    subtitlePreview.textContent = [entry.client, entry.category].filter(Boolean).join(' · ')
+    setThumb(thumbImg, thumbEmpty, previewUrlFor(entry._coverFile, entry.src))
+  }
+  refreshHeader()
+
+  ;['title', 'client', 'year', 'category', 'description'].forEach((key) => {
     field(key).value = entry[key]
     field(key).addEventListener('input', (e) => {
       entry[key] = e.target.value
-      if (key === 'title') setPreview()
+      if (key === 'title' || key === 'client' || key === 'category') refreshHeader()
       persist()
     })
   })
 
+  const coverImg = card.querySelector('[data-role="cover-img"]')
+  const coverEmpty = card.querySelector('[data-role="cover-empty"]')
+  setThumb(coverImg, coverEmpty, previewUrlFor(entry._coverFile, entry.src))
+  card.querySelector('[data-action="pick-cover"]').addEventListener('click', () => field('src-file').click())
   field('src-file').addEventListener('change', async (e) => {
     const file = e.target.files[0]
     if (!file) return
-    await handleFilePick(file, field('src'), (aspect) => {
-      entry.aspect = aspect
-      entry.src = field('src').value
-      persist()
-    })
+    const path = suggestedPath(file)
+    entry.src = path
+    entry._coverFile = file
+    pendingFiles.set(path, file)
+    setThumb(coverImg, coverEmpty, previewUrlFor(file, path))
+    refreshHeader()
+    entry.aspect = await readImageAspect(file)
+    persist()
   })
 
-  card.querySelector('[data-action="move-up"]').addEventListener('click', () => {
-    if (index === 0) return
-    ;[state.journal[index - 1], state.journal[index]] = [state.journal[index], state.journal[index - 1]]
-    persist()
-    renderJournal()
-  })
-  card.querySelector('[data-action="move-down"]').addEventListener('click', () => {
-    if (index === state.journal.length - 1) return
-    ;[state.journal[index + 1], state.journal[index]] = [state.journal[index], state.journal[index + 1]]
-    persist()
-    renderJournal()
-  })
-  card.querySelector('[data-action="remove"]').addEventListener('click', () => {
-    if (!confirm(`Supprimer « ${entry.title || 'cette entrée'} » ?`)) return
-    state.journal.splice(index, 1)
-    persist()
-    renderJournal()
-  })
-
+  bindCardChrome(card, entry, index, state.journal, renderJournal)
   renderExtras(card, entry)
 }
 
@@ -559,56 +674,42 @@ function downloadBinaryFile(filename, file) {
 }
 
 // Each file downloads from its own explicit click rather than all being
-// triggered at once from the "Exporter" button — Chrome (and others) treat
-// several programmatic downloads fired back-to-back as a flood and silently
-// block everything after the first one. A genuine click per file sidesteps
-// that entirely, and doubles as a way to re-grab one file without redoing
-// the others.
-function addDownloadStep(parent, label, onClick) {
-  const li = document.createElement('li')
+// triggered at once from the "Enregistrer" button — Chrome (and others)
+// treat several programmatic downloads fired back-to-back as a flood and
+// silently block everything after the first one. A genuine click per file
+// sidesteps that entirely, and doubles as a way to re-grab one file without
+// redoing the others.
+function addExportRow(parent, label, onClick) {
+  const row = document.createElement('li')
+  row.className = 'export-row'
+  const span = document.createElement('span')
+  span.innerHTML = label
   const link = document.createElement('a')
   link.href = '#'
-  link.innerHTML = label
+  link.textContent = 'Télécharger'
   link.addEventListener('click', (e) => {
     e.preventDefault()
     onClick()
-    link.style.opacity = '0.5'
+    link.textContent = 'Téléchargé ✓'
+    link.classList.add('is-done')
   })
-  li.appendChild(link)
-  parent.appendChild(li)
+  row.appendChild(span)
+  row.appendChild(link)
+  parent.appendChild(row)
 }
 
 function exportAll() {
   const steps = document.getElementById('export-steps')
   steps.innerHTML = ''
 
-  const intro = document.createElement('li')
-  intro.textContent = 'Clique chaque lien pour télécharger le fichier, puis place-le au bon endroit :'
-  steps.appendChild(intro)
+  addExportRow(steps, 'Données des projets <code>galleryData.js</code>', () => downloadTextFile('galleryData.js', buildGalleryDataFile()))
+  addExportRow(steps, 'Données du Journal <code>journalData.js</code>', () => downloadTextFile('journalData.js', buildJournalDataFile()))
+  addExportRow(steps, 'Réglages <code>siteSettings.js</code>', () => downloadTextFile('siteSettings.js', buildSiteSettingsFile()))
 
-  addDownloadStep(steps, 'Télécharger <code>galleryData.js</code> → <code>src/data/</code>', () =>
-    downloadTextFile('galleryData.js', buildGalleryDataFile()),
-  )
-  addDownloadStep(steps, 'Télécharger <code>journalData.js</code> → <code>src/data/</code>', () =>
-    downloadTextFile('journalData.js', buildJournalDataFile()),
-  )
-  addDownloadStep(steps, 'Télécharger <code>siteSettings.js</code> → <code>src/data/</code>', () =>
-    downloadTextFile('siteSettings.js', buildSiteSettingsFile()),
-  )
-
-  if (pendingFiles.size) {
-    const imagesIntro = document.createElement('li')
-    imagesIntro.innerHTML = `${pendingFiles.size} nouvelle(s) image(s) → <code>public/media/images/</code> :`
-    steps.appendChild(imagesIntro)
-    pendingFiles.forEach((file, path) => {
-      const filename = path.split('/').pop()
-      addDownloadStep(steps, `Télécharger <code>${filename}</code>`, () => downloadBinaryFile(filename, file))
-    })
-  }
-
-  const outro = document.createElement('li')
-  outro.textContent = 'Envoie ces fichiers pour que le site soit reconstruit et republié.'
-  steps.appendChild(outro)
+  pendingFiles.forEach((file, path) => {
+    const filename = path.split('/').pop()
+    addExportRow(steps, `Photo <code>${filename}</code>`, () => downloadBinaryFile(filename, file))
+  })
 
   document.getElementById('export-modal').hidden = false
 }
