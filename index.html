@@ -11,7 +11,7 @@
     <div id="app">
       <header class="site-header">
         <img class="site-mark" src="/logo-picto.svg" alt="Ismael Nebchi" />
-        <span class="site-subtitle">Selected&nbsp;Works</span>
+        <span class="site-subtitle" id="site-subtitle">Selected&nbsp;Works</span>
         <button class="overview-toggle" id="overview-toggle" type="button" aria-label="Changer de vue" data-mode="grid">
           <span class="overview-toggle-icon overview-toggle-icon--grid">
             <span></span><span></span><span></span><span></span>
@@ -133,14 +133,14 @@
     <footer class="site-footer">
       <nav class="footer-nav">
         <a href="#app">Selected Works</a>
-        <a href="mailto:hello@ismaelnebchi.com">Contact</a>
-        <a href="#app">Instagram</a>
-        <a href="#app">Are.na</a>
+        <a href="mailto:hello@ismaelnebchi.com" id="footer-contact-link">Contact</a>
+        <a href="#app" id="footer-instagram-link" target="_blank" rel="noopener">Instagram</a>
+        <a href="#app" id="footer-arena-link" target="_blank" rel="noopener">Are.na</a>
       </nav>
 
       <div class="footer-bottom">
-        <span>© 2026 Ismael Nebchi. Tous droits réservés.</span>
-        <span>Édition N°01 — Galerie</span>
+        <span id="footer-copyright">© 2026 Ismael Nebchi. Tous droits réservés.</span>
+        <span id="footer-edition">Édition N°01 — Galerie</span>
       </div>
 
       <div class="footer-wordmark">
@@ -149,17 +149,11 @@
     </footer>
 
     <div id="loader" class="loader">
-      <div class="loader-stage" id="loader-stage">
-        <div class="loader-tile"><img src="/media/images/img3.jpg" alt="" /></div>
-        <div class="loader-tile"><img src="/media/images/castelbajac-mattel03.jpg" alt="" /></div>
-        <div class="loader-tile"><img src="/media/images/img15.jpg" alt="" /></div>
-        <div class="loader-tile"><img src="/media/images/img27.jpg" alt="" /></div>
-        <div class="loader-tile"><img src="/media/images/img37.jpg" alt="" /></div>
-        <div class="loader-tile"><img src="/media/images/video00-poster.jpg" alt="" /></div>
-        <div class="loader-tile"><img src="/media/images/img49.jpg" alt="" /></div>
-        <div class="loader-tile"><img src="/media/images/img61.jpg" alt="" /></div>
-        <div class="loader-tile"><img src="/media/images/project00.jpg" alt="" /></div>
-      </div>
+      <!-- Populated at runtime from galleryItems (see main.js) — each item
+           with loaderPinned: true gets a tile here, in array order. Kept
+           empty in markup so the admin's "pin for preloader" toggle (see
+           admin.html) takes effect without ever hand-editing this file. -->
+      <div class="loader-stage" id="loader-stage"></div>
       <div class="loader-counter" id="loader-counter">0</div>
 
       <div class="loader-wordmark" id="loader-wordmark">

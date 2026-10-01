@@ -8,7 +8,7 @@ const ENTRANCE_LAMBDA = 6 // how fast the section's own one-time entrance wipe s
 
 // "Journal" strip: a plain DOM section (no WebGL) sitting in normal document
 // flow right after the main gallery, before the footer — a demo news/updates
-// section reusing existing photos (see journalItems in galleryData.js). All
+// section reusing existing photos (see journalItems in journalData.js). All
 // 6 cards share one fixed 4:3 box (80% of the viewport height), title below.
 //
 // The horizontal scroll is driven by ordinary vertical page scroll, not a

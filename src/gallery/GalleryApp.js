@@ -1,5 +1,6 @@
 import * as THREE from 'three'
-import { galleryItems, journalItems } from '../data/galleryData.js'
+import { galleryItems } from '../data/galleryData.js'
+import { journalItems } from '../data/journalData.js'
 import { computeGalleryLayout } from './layout.js'
 import { Tile } from './Tile.js'
 import { DetailView } from './DetailView.js'

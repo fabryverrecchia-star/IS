@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Admin — Ismael Nebchi</title>
+  </head>
+  <body>
+    <!-- Simple passcode gate (see src/admin/main.js) — this is a purely
+         static site with no server, so this can only ever deter a casual
+         visitor from poking at the dashboard, never stop someone who reads
+         the page's source. Change ADMIN_CODE in src/admin/main.js to set
+         your own code. -->
+    <div id="gate" class="gate">
+      <form id="gate-form" class="gate-form">
+        <h1>Back office</h1>
+        <p>Entre le code pour continuer.</p>
+        <input type="password" id="gate-input" autocomplete="off" autofocus />
+        <button type="submit">Entrer</button>
+        <p id="gate-error" class="gate-error" hidden>Code incorrect.</p>
+      </form>
+    </div>
+
+    <div id="dashboard" class="dashboard" hidden>
+      <header class="dash-header">
+        <h1>Back office — Ismael Nebchi</h1>
+        <div class="dash-header-actions">
+          <button type="button" id="reset-btn" class="btn btn--ghost">Réinitialiser depuis le site actuel</button>
+          <button type="button" id="export-btn" class="btn btn--primary">Exporter</button>
+        </div>
+      </header>
+
+      <nav class="dash-tabs">
+        <button type="button" class="dash-tab is-active" data-tab="projects">Projets</button>
+        <button type="button" class="dash-tab" data-tab="journal">Journal</button>
+        <button type="button" class="dash-tab" data-tab="settings">Réglages</button>
+      </nav>
+
+      <main class="dash-main">
+        <section class="dash-panel is-active" id="panel-projects">
+          <div class="panel-intro">
+            <p>
+              Chaque carte est un projet de la galerie. Coche <strong>« Dans le préchargement »</strong>
+              pour qu'il apparaisse dans l'animation de chargement. L'ordre ici est l'ordre dans la grille.
+            </p>
+            <button type="button" id="add-project-btn" class="btn btn--primary">+ Ajouter un projet</button>
+          </div>
+          <div id="projects-list" class="card-list"></div>
+        </section>
+
+        <section class="dash-panel" id="panel-journal">
+          <div class="panel-intro">
+            <p>Les entrées du Journal, dans l'ordre d'affichage.</p>
+            <button type="button" id="add-journal-btn" class="btn btn--primary">+ Ajouter une entrée</button>
+          </div>
+          <div id="journal-list" class="card-list"></div>
+        </section>
+
+        <section class="dash-panel" id="panel-settings">
+          <div class="panel-intro">
+            <p>Réglages généraux du site.</p>
+          </div>
+          <form id="settings-form" class="settings-form">
+            <label>Sous-titre (header)<input type="text" name="subtitle" /></label>
+            <label>Email de contact<input type="email" name="contactEmail" /></label>
+            <label>Lien Instagram<input type="url" name="instagramUrl" placeholder="https://instagram.com/…" /></label>
+            <label>Lien Are.na<input type="url" name="arenaUrl" placeholder="https://are.na/…" /></label>
+            <label>Copyright (pied de page)<input type="text" name="footerCopyright" /></label>
+            <label>Édition (pied de page)<input type="text" name="footerEdition" /></label>
+          </form>
+        </section>
+      </main>
+    </div>
+
+    <!-- Export summary + instructions, shown after clicking "Exporter". -->
+    <div id="export-modal" class="modal" hidden>
+      <div class="modal-box">
+        <h2>Export prêt</h2>
+        <ol id="export-steps" class="export-steps"></ol>
+        <button type="button" id="export-close-btn" class="btn btn--primary">Fermer</button>
+      </div>
+    </div>
+
+    <!-- Reusable template for one project card -->
+    <template id="project-card-template">
+      <article class="card" data-role="project-card">
+        <div class="card-head">
+          <button type="button" class="card-drag" data-action="move-up" title="Monter">↑</button>
+          <button type="button" class="card-drag" data-action="move-down" title="Descendre">↓</button>
+          <strong class="card-title" data-field="title-preview">Nouveau projet</strong>
+          <label class="card-pin">
+            <input type="checkbox" data-field="loaderPinned" />
+            Dans le préchargement
+          </label>
+          <button type="button" class="card-remove" data-action="remove">Supprimer</button>
+        </div>
+        <div class="card-body">
+          <label>Type
+            <select data-field="type">
+              <option value="image">Image</option>
+              <option value="video">Vidéo</option>
+            </select>
+          </label>
+          <label>Titre<input type="text" data-field="title" /></label>
+          <label>Client<input type="text" data-field="client" /></label>
+          <label>Année<input type="text" data-field="year" /></label>
+          <label>Lien externe (optionnel)<input type="url" data-field="link" placeholder="https://…" /></label>
+          <label class="full">Description<textarea data-field="description" rows="3"></textarea></label>
+
+          <div class="cover-field" data-role="image-fields">
+            <label>Image de couverture
+              <input type="file" accept="image/*" data-field="src-file" />
+              <input type="text" data-field="src" placeholder="media/images/mon-fichier.jpg" />
+            </label>
+          </div>
+          <div class="cover-field" data-role="video-fields" hidden>
+            <label>Vidéo (aperçu muet, grille)<input type="text" data-field="videoSrc" placeholder="media/images/mon-clip-preview.mp4" /></label>
+            <label>Vidéo (version complète)<input type="text" data-field="fullSrc" placeholder="media/images/mon-clip.mp4" /></label>
+            <label>Image poster<input type="file" accept="image/*" data-field="poster-file" /><input type="text" data-field="poster" placeholder="media/images/mon-clip-poster.jpg" /></label>
+          </div>
+
+          <div class="extras" data-role="extras">
+            <div class="extras-head">
+              <span>Photos supplémentaires (visibles en scrollant la page projet)</span>
+              <button type="button" class="btn btn--ghost btn--small" data-action="add-extra">+ Ajouter une photo</button>
+            </div>
+            <div class="extras-list" data-role="extras-list"></div>
+          </div>
+        </div>
+      </article>
+    </template>
+
+    <template id="extra-row-template">
+      <div class="extra-row" data-role="extra-row">
+        <input type="file" accept="image/*" data-field="extra-file" />
+        <input type="text" data-field="extra-src" placeholder="media/images/mon-fichier.jpg" />
+        <button type="button" class="card-remove" data-action="remove-extra">✕</button>
+      </div>
+    </template>
+
+    <template id="journal-card-template">
+      <article class="card" data-role="journal-card">
+        <div class="card-head">
+          <button type="button" class="card-drag" data-action="move-up" title="Monter">↑</button>
+          <button type="button" class="card-drag" data-action="move-down" title="Descendre">↓</button>
+          <strong class="card-title" data-field="title-preview">Nouvelle entrée</strong>
+          <button type="button" class="card-remove" data-action="remove">Supprimer</button>
+        </div>
+        <div class="card-body">
+          <label>Titre<input type="text" data-field="title" /></label>
+          <label>Client<input type="text" data-field="client" /></label>
+          <label>Année<input type="text" data-field="year" /></label>
+          <label>Catégorie<input type="text" data-field="category" /></label>
+          <label class="full">Description<textarea data-field="description" rows="2"></textarea></label>
+          <div class="cover-field">
+            <label>Image de couverture
+              <input type="file" accept="image/*" data-field="src-file" />
+              <input type="text" data-field="src" placeholder="media/images/mon-fichier.jpg" />
+            </label>
+          </div>
+          <div class="extras" data-role="extras">
+            <div class="extras-head">
+              <span>Galerie du panneau détail</span>
+              <button type="button" class="btn btn--ghost btn--small" data-action="add-extra">+ Ajouter une photo</button>
+            </div>
+            <div class="extras-list" data-role="extras-list"></div>
+          </div>
+        </div>
+      </article>
+    </template>
+
+    <script type="module" src="./src/admin/main.js"></script>
+  </body>
+</html>

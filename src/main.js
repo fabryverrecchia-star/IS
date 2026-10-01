@@ -2,6 +2,7 @@ import './style.css'
 import { GalleryApp } from './gallery/GalleryApp.js'
 import { computeGalleryLayout } from './gallery/layout.js'
 import { galleryItems } from './data/galleryData.js'
+import { siteSettings } from './data/siteSettings.js'
 
 const app = document.getElementById('app')
 const loader = document.getElementById('loader')
@@ -9,6 +10,20 @@ const loaderStage = document.getElementById('loader-stage')
 const loaderCounter = document.getElementById('loader-counter')
 const loaderWordmarkFill = document.querySelector('.loader-wordmark-fill')
 const scrollHint = document.getElementById('scroll-hint')
+
+// Fills in the handful of site-wide text/links editable from the admin
+// dashboard (see siteSettings.js) — a blank Instagram/Are.na URL leaves the
+// footer's placeholder link alone rather than pointing it nowhere useful.
+function applySiteSettings(settings) {
+  document.getElementById('site-subtitle').innerHTML = settings.subtitle.replace(/ /g, '&nbsp;')
+  const contactLink = document.getElementById('footer-contact-link')
+  contactLink.href = `mailto:${settings.contactEmail}`
+  if (settings.instagramUrl) document.getElementById('footer-instagram-link').href = settings.instagramUrl
+  if (settings.arenaUrl) document.getElementById('footer-arena-link').href = settings.arenaUrl
+  document.getElementById('footer-copyright').textContent = settings.footerCopyright
+  document.getElementById('footer-edition').textContent = settings.footerEdition
+}
+applySiteSettings(siteSettings)
 
 // Small preview tiles scattered loosely around the viewport (not a tidy
 // grid) — each gets a random angle/radius from screen center plus a
@@ -38,12 +53,34 @@ function computeScatterLayout(count, viewportWidth, viewportHeight) {
   return positions
 }
 
+// Which gallery items appear in the preloader (see galleryData.js's
+// loaderPinned flag, editable from admin.html) — built dynamically rather
+// than hardcoded in index.html so pinning/unpinning a project here can
+// never drift out of sync with which items actually exist.
+const pinnedEntries = galleryItems
+  .map((item, index) => ({ item, index }))
+  .filter(({ item }) => item.loaderPinned)
+
+pinnedEntries.forEach(({ item }) => {
+  const tile = document.createElement('div')
+  tile.className = 'loader-tile'
+  const img = document.createElement('img')
+  // Videos can't be a loader tile's background, so fall back to their poster
+  // frame — same still used elsewhere a plain image is needed for one.
+  img.src = item.type === 'video' ? item.poster : item.src
+  img.alt = ''
+  tile.appendChild(img)
+  loaderStage.appendChild(tile)
+})
+
 const loaderTiles = [...loaderStage.children]
 const scatterPositions = computeScatterLayout(loaderTiles.length, window.innerWidth, window.innerHeight)
-// The real gallery's own first 8 cell positions, in the real gallery order —
-// this is what the scattered preview grows into once loading finishes, so
-// the reveal reads as the preview becoming the gallery rather than a cut
-// between them.
+// The real gallery's own cell positions, in the real gallery order — this is
+// what the scattered preview grows into once loading finishes, so the
+// reveal reads as the preview becoming the gallery rather than a cut
+// between them. Indexed by each pinned item's real position in
+// galleryItems (not by its position among just the pinned subset), so
+// pinned items don't need to be the first N entries or contiguous.
 const realLayout = computeGalleryLayout(galleryItems, window.innerWidth, window.innerHeight)
 
 function placeTile(tile, cell) {
@@ -97,7 +134,7 @@ function triggerGrow() {
   loaderTiles.forEach((tile) => tile.classList.add('is-revealed'))
   loaderStage.classList.add('is-growing')
   loaderTiles.forEach((tile, i) => {
-    placeTile(tile, realLayout.positions[i])
+    placeTile(tile, realLayout.positions[pinnedEntries[i].index])
     tile.style.setProperty('--rot', '0deg')
   })
   // Once the grow animation lands, dissolve the loader — the tiles are
