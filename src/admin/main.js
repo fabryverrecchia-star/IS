@@ -1,4 +1,5 @@
 import './admin.css'
+import JSZip from 'jszip'
 import { galleryItems as savedProjects } from '../data/galleryData.js'
 import { journalItems as savedJournal } from '../data/journalData.js'
 import { siteSettings as savedSettings } from '../data/siteSettings.js'
@@ -654,62 +655,35 @@ export const siteSettings = {
 `
 }
 
-function downloadTextFile(filename, content) {
-  const blob = new Blob([content], { type: 'text/plain' })
+// One click, one file: everything (the three data files plus any newly
+// picked photos) goes into a single zip. Multiple separate downloads used
+// to need their own individual clicks — not because of a technical need,
+// but because Chrome silently blocks several auto-downloads fired at once;
+// a single zip sidesteps that entirely and is also just simpler to hand off
+// to someone else afterwards.
+async function exportAll() {
+  const btn = document.getElementById('export-btn')
+  btn.disabled = true
+  btn.textContent = 'Préparation…'
+
+  const zip = new JSZip()
+  zip.file('data/galleryData.js', buildGalleryDataFile())
+  zip.file('data/journalData.js', buildJournalDataFile())
+  zip.file('data/siteSettings.js', buildSiteSettingsFile())
+  pendingFiles.forEach((file, path) => {
+    zip.file(`images/${path.split('/').pop()}`, file)
+  })
+
+  const blob = await zip.generateAsync({ type: 'blob' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = filename
+  a.download = 'mise-a-jour-site.zip'
   a.click()
   URL.revokeObjectURL(url)
-}
 
-function downloadBinaryFile(filename, file) {
-  const url = URL.createObjectURL(file)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  a.click()
-  URL.revokeObjectURL(url)
-}
-
-// Each file downloads from its own explicit click rather than all being
-// triggered at once from the "Enregistrer" button — Chrome (and others)
-// treat several programmatic downloads fired back-to-back as a flood and
-// silently block everything after the first one. A genuine click per file
-// sidesteps that entirely, and doubles as a way to re-grab one file without
-// redoing the others.
-function addExportRow(parent, label, onClick) {
-  const row = document.createElement('li')
-  row.className = 'export-row'
-  const span = document.createElement('span')
-  span.innerHTML = label
-  const link = document.createElement('a')
-  link.href = '#'
-  link.textContent = 'Télécharger'
-  link.addEventListener('click', (e) => {
-    e.preventDefault()
-    onClick()
-    link.textContent = 'Téléchargé ✓'
-    link.classList.add('is-done')
-  })
-  row.appendChild(span)
-  row.appendChild(link)
-  parent.appendChild(row)
-}
-
-function exportAll() {
-  const steps = document.getElementById('export-steps')
-  steps.innerHTML = ''
-
-  addExportRow(steps, 'Données des projets <code>galleryData.js</code>', () => downloadTextFile('galleryData.js', buildGalleryDataFile()))
-  addExportRow(steps, 'Données du Journal <code>journalData.js</code>', () => downloadTextFile('journalData.js', buildJournalDataFile()))
-  addExportRow(steps, 'Réglages <code>siteSettings.js</code>', () => downloadTextFile('siteSettings.js', buildSiteSettingsFile()))
-
-  pendingFiles.forEach((file, path) => {
-    const filename = path.split('/').pop()
-    addExportRow(steps, `Photo <code>${filename}</code>`, () => downloadBinaryFile(filename, file))
-  })
+  btn.disabled = false
+  btn.textContent = 'Mettre à jour'
 
   document.getElementById('export-modal').hidden = false
 }
