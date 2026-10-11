@@ -286,17 +286,20 @@ body.is-drag-scrolling {
 
 /* --- full-text project list (2nd view mode, see GalleryApp.toggleViewMode) ---
    A plain DOM magazine-style index: large titles only, the gallery canvas
-   hidden behind it. Sits in normal document flow (position: absolute, not
-   fixed) so the same window-scroll + spacer-height mechanism that drives
-   the WebGL gallery layout scrolls this too, and the shared tilt value
-   computed each frame in GalleryApp._update is applied to it the same
-   way — same "mood", just on lettering instead of tiles. */
+   hidden behind it. position: fixed (viewport-anchored, out of native
+   document flow) — GalleryApp._update translates it each frame from the
+   same damped scrollSmoothed value that moves the WebGL grid's
+   contentGroup, so the two modes share one "feel" instead of this one
+   moving at the raw, unsmoothed speed of native scroll. The spacer still
+   drives window.scrollY itself (native wheel/trackpad/touch all keep
+   working exactly as before); this just no longer reads its own screen
+   position directly from document flow. The list is rendered twice back to
+   back (see GalleryApp._buildFulltextList) and the translation wraps at
+   one copy's height for an endless loop. */
 .fulltext-view {
   display: none;
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
+  position: fixed;
+  inset: 0;
   z-index: 2;
   padding: clamp(110px, 20vh, 220px) clamp(20px, 6vw, 64px) clamp(96px, 16vh, 180px);
   perspective: 1400px;
@@ -964,9 +967,12 @@ body.project-page-open {
   width: var(--journal-card-width, 60vh);
   cursor: pointer;
   /* Resting/initial state before JournalView.update() takes over each
-     frame — fully clipped away, matching the "just about to enter" state
-     so there's no flash of an unclipped card before JS engages. */
+     frame (clip-path, opacity and transform all driven per-frame from
+     there, matched here only so there's nothing to flash before JS
+     engages) — fully clipped away, invisible, settled slightly down. */
   clip-path: inset(0 100% 0 0);
+  opacity: 0;
+  transform: translateY(18px);
 }
 
 .journal-card-media {

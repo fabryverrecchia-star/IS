@@ -1,10 +1,12 @@
 import { clamp, damp } from './math.js'
 
 const PARALLAX_RANGE = 24 // px, the image's total pan headroom on hover — kept light
-const REVEAL_DISTANCE = 720 // px — how far a card travels in from the right edge before it's fully revealed
+const REVEAL_DISTANCE = 960 // px — how far a card travels in from the right edge before it's fully revealed
 const LABEL_FADE_DISTANCE = 220 // px — how close the first card gets to the label before it's fully faded out
 const PROGRESS_DAMP_LAMBDA = 8 // smoothing on the horizontal progress itself — see update()
-const ENTRANCE_LAMBDA = 6 // how fast the section's own one-time entrance wipe settles in
+const ENTRANCE_LAMBDA = 3.2 // how fast the section's own one-time entrance wipe settles in — slow
+// enough that the first card or two (already near their rest position the moment the section
+// scrolls into view) still read as a deliberate reveal rather than a near-instant pop
 
 // "Journal" strip: a plain DOM section (no WebGL) sitting in normal document
 // flow right after the main gallery, before the footer — a demo news/updates
@@ -250,7 +252,10 @@ export class JournalView {
     // travels in from the right edge of the viewport — instead of popping
     // fully visible the instant it crosses the edge. Position is derived
     // from the cached layout offset + this frame's translateX rather than a
-    // live rect read, so no extra reflow per card.
+    // live rect read, so no extra reflow per card. Opacity and a slight
+    // upward settle ride the same eased value so the wipe reads as one soft
+    // gesture (fade + rise + reveal together) instead of just a hard clipped
+    // edge sweeping across — the clip-path alone looked blunt/mechanical.
     const viewportWidth = window.innerWidth
     this.cardEls.forEach((card, i) => {
       const offset = this.cardOffsets[i]
@@ -259,6 +264,8 @@ export class JournalView {
       const t = clamp((viewportWidth - left) / REVEAL_DISTANCE, 0, 1)
       const eased = Math.min(1 - Math.pow(1 - t, 3), this.entranceT)
       card.style.clipPath = `inset(0 ${(1 - eased) * 100}% 0 0)`
+      card.style.opacity = String(eased)
+      card.style.transform = `translateY(${(1 - eased) * 18}px)`
     })
   }
 

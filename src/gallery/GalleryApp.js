@@ -58,6 +58,7 @@ export class GalleryApp {
     this.scrollSmoothed = 0
     this.scrollPrev = 0
     this.tiltCurrent = 0
+    this._fulltextSingleHeight = 0 // set by _updateFulltextSpacerHeight once the list is built
     this.modeRecede = 0 // 0 = grid at rest, 1 = fully pulled back into perspective (see toggleViewMode)
     this.modeRecedeTarget = 0
 
@@ -122,18 +123,37 @@ export class GalleryApp {
 
   // Builds the magazine-style title list once at startup (kept in the DOM,
   // hidden via CSS until viewMode === 'fulltext' — see toggleViewMode).
+  // Rendered twice back-to-back for the infinite loop (see _update's use of
+  // this._fulltextLoopHeight): as scroll passes the end of the first copy,
+  // the second — identical — copy is already sitting right there, so
+  // wrapping the scroll position back to 0 is invisible. Both copies share
+  // the same data-index per title so either one opens the right project.
   _buildFulltextList() {
-    this.items.forEach((item, index) => {
-      const btn = document.createElement('button')
-      btn.type = 'button'
-      btn.className = 'fulltext-item'
-      btn.dataset.index = String(index)
-      btn.textContent = item.title
-      // Staggered entrance (see .fulltext-list.is-revealed in style.css) —
-      // fixed per item so it doesn't need recomputing on every toggle.
-      btn.style.transitionDelay = `${Math.min(index * 0.035, 0.35)}s`
-      this.fulltextList.appendChild(btn)
-    })
+    for (let copy = 0; copy < 2; copy++) {
+      this.items.forEach((item, index) => {
+        const btn = document.createElement('button')
+        btn.type = 'button'
+        btn.className = 'fulltext-item'
+        btn.dataset.index = String(index)
+        btn.textContent = item.title
+        // Staggered entrance (see .fulltext-list.is-revealed in style.css) —
+        // fixed per item so it doesn't need recomputing on every toggle.
+        // Only the first copy needs the stagger; the second is never seen
+        // mid-entrance (scroll starts at 0, well into the first copy).
+        if (copy === 0) btn.style.transitionDelay = `${Math.min(index * 0.035, 0.35)}s`
+        this.fulltextList.appendChild(btn)
+      })
+    }
+  }
+
+  // Measures one copy's height (half the doubled list's own scrollHeight —
+  // see _buildFulltextList) and sizes the spacer to several loops' worth of
+  // native scroll range, comfortably past the wrap-reset threshold _update
+  // uses (3x) so that reset is never anywhere near the real bottom of the
+  // document — scrolling never visibly "runs out".
+  _updateFulltextSpacerHeight() {
+    this._fulltextSingleHeight = this.fulltextList.scrollHeight / 2
+    this.spacer.style.height = `${Math.round(this._fulltextSingleHeight * 4)}px`
   }
 
   _initThree() {
@@ -260,7 +280,7 @@ export class GalleryApp {
       const item = e.target.closest('.fulltext-item')
       if (!item) return
       e.stopPropagation()
-      this._handleFulltextOpen(Number(item.dataset.index))
+      this._handleFulltextOpen(Number(item.dataset.index), item)
     }
     this._onFulltextOver = (e) => {
       const item = e.target.closest('.fulltext-item')
@@ -362,7 +382,7 @@ export class GalleryApp {
     // The list's own rendered height (its content grows with clamp()'d
     // font sizes) is what should drive the real scrollbar range while
     // it's showing, not whatever the mosaic layout last computed.
-    this.spacer.style.height = `${Math.round(this.fulltextView.offsetHeight)}px`
+    this._updateFulltextSpacerHeight()
 
     this._animateTilesReveal(0)
     // One frame so the list's default (hidden) state actually paints
@@ -384,6 +404,7 @@ export class GalleryApp {
     clearTimeout(this._modeVisibilityTimer)
     this.fulltextList.classList.remove('is-revealed')
     this.fulltextList.style.transform = ''
+    this.fulltextView.style.transform = ''
     this.fulltextPreview.classList.remove('is-visible')
     this.fulltextPreviewVideo.pause()
     this._modeVisibilityTimer = setTimeout(() => {
@@ -416,12 +437,18 @@ export class GalleryApp {
   // DetailView already does for a normal grid click. The list is only faded
   // out, not torn down, and viewMode stays 'fulltext' throughout so closing
   // (_handleDetailCloseComplete) returns to the list instead of the grid.
-  _handleFulltextOpen(index) {
+  // `clickedEl` is the actual element the pointer landed on, not just
+  // re-queried by index — the list now renders each item twice for the
+  // infinite loop (see _buildFulltextList), so a lookup by data-index alone
+  // would always resolve to the first copy regardless of which one is
+  // actually on screen, and the zoom-in animation would start from the
+  // wrong spot.
+  _handleFulltextOpen(index, clickedEl) {
     if (this.detailView.isActive) return
     const tile = this.tiles[index]
     if (!tile) return
 
-    const itemEl = this.fulltextList.querySelector(`.fulltext-item[data-index="${index}"]`)
+    const itemEl = clickedEl || this.fulltextList.querySelector(`.fulltext-item[data-index="${index}"]`)
     const previewVisible = this.fulltextPreview.classList.contains('is-visible')
     const rect = previewVisible ? this.fulltextPreview.getBoundingClientRect() : itemEl.getBoundingClientRect()
 
@@ -515,7 +542,7 @@ export class GalleryApp {
     if (this.viewMode === 'fulltext') {
       // Tiles stay hidden and wherever they were — only the list's own
       // (now reflowed) height needs to keep driving the scroll range.
-      this.spacer.style.height = `${Math.round(this.fulltextView.offsetHeight)}px`
+      this._updateFulltextSpacerHeight()
     } else {
       this._buildLayout(false)
     }
@@ -600,7 +627,26 @@ export class GalleryApp {
 
   _update(dt, elapsed) {
     // --- scroll ---
-    const rawScroll = window.scrollY || window.pageYOffset || 0
+    let rawScroll = window.scrollY || window.pageYOffset || 0
+
+    // Infinite-loop reset for the full-text list (see _buildFulltextList's
+    // doubled rendering): once native scroll drifts past 3 loops' worth,
+    // silently rewind it by exactly 2 loops' worth. window.scrollTo,
+    // scrollSmoothed and scrollPrev all shift together within this same
+    // frame, so the *wrapped* position used further down never visibly
+    // moves — keeps native scroll within a bounded range forever without
+    // the list ever appearing to "run out".
+    if (this.viewMode === 'fulltext' && this._fulltextSingleHeight > 0) {
+      const resetThreshold = this._fulltextSingleHeight * 3
+      if (rawScroll > resetThreshold) {
+        const shift = this._fulltextSingleHeight * 2
+        window.scrollTo(0, rawScroll - shift)
+        rawScroll -= shift
+        this.scrollSmoothed -= shift
+        this.scrollPrev -= shift
+      }
+    }
+
     this.scrollSmoothed = damp(this.scrollSmoothed, rawScroll, 9, dt)
     const velocity = (this.scrollSmoothed - this.scrollPrev) / Math.max(dt, 1 / 120)
     this.scrollPrev = this.scrollSmoothed
@@ -617,9 +663,20 @@ export class GalleryApp {
     this.modeRecede = damp(this.modeRecede, this.modeRecedeTarget, MODE_RECEDE_LAMBDA, dt)
     this.contentGroup.position.z = -this.modeRecede * MODE_RECEDE_Z
 
-    // Full-text view has no WebGL content of its own — same scroll-velocity
-    // tilt value, just applied as a CSS transform on the title list instead.
-    if (this.viewMode === 'fulltext') {
+    // Full-text view has no WebGL content of its own, so it's taken out of
+    // native document scroll entirely (see .fulltext-view's position:fixed)
+    // and translated here from the same damped scrollSmoothed value that
+    // moves the WebGL grid's contentGroup above — otherwise this view's
+    // motion would come straight from the browser's raw, undamped native
+    // scroll while the grid right next to it (toggled from the same button)
+    // glides, a jarring mismatch in "feel" between the two modes. Same
+    // scroll-velocity tilt value as before, still applied to the list.
+    if (this.viewMode === 'fulltext' && this._fulltextSingleHeight > 0) {
+      // Wrapped into [0, singleHeight) — see the reset block above for why
+      // this is always continuous even as scrollSmoothed grows unbounded.
+      const loopHeight = this._fulltextSingleHeight
+      const wrapped = ((this.scrollSmoothed % loopHeight) + loopHeight) % loopHeight
+      this.fulltextView.style.transform = `translateY(${-wrapped}px)`
       this.fulltextList.style.transform = `rotateX(${this.tiltCurrent}rad)`
     }
     // The journal strip sits in normal document flow below whichever of
