@@ -92,10 +92,21 @@ export class ProjectPage {
     return this.tile !== null
   }
 
+  // Shared by close() and open() (the latter when a project swaps straight
+  // to the next one without closing first — see GalleryApp._handleProjectNext).
+  _teardownVideo() {
+    if (!this._fullVideoEl) return
+    this._fullVideoEl.pause()
+    this._fullVideoEl.removeAttribute('src')
+    this._fullVideoEl.load()
+    this._fullVideoEl = null
+  }
+
   // The hero is sized to its own native aspect ratio (no crop) — see
   // heroLayout.js, the same math DetailView's WebGL zoom already lands on,
   // so the DOM hand-off is pixel-identical.
   open(tile) {
+    this._teardownVideo()
     const item = tile.item
     this.tile = tile
 
@@ -182,9 +193,10 @@ export class ProjectPage {
   // the full viewport width rather than being boxed into the narrower hero
   // column — see .project-next in style.css, which also fades the fixed
   // info sidebar out of the way while this is in view (.showing-next) so
-  // the image genuinely reaches both edges. Swaps straight to that project
-  // (see GalleryApp._handleProjectNext) without the WebGL zoom-from-grid
-  // entrance, since there's no on-screen tile to zoom from here.
+  // the image genuinely reaches both edges. A click hands its own on-screen
+  // rect to GalleryApp._handleProjectNext, which zooms the WebGL hero in
+  // from that exact rect to the next project's hero layout — the same
+  // click-to-zoom-from-DOM-rect technique the fulltext list view uses.
   _buildNextProjectTeaser(tile) {
     const tiles = this.app.tiles
     const index = tiles.indexOf(tile)
@@ -237,7 +249,7 @@ export class ProjectPage {
       img.style.transform = 'translate3d(0, 0, 0) scale(1.08)'
     })
 
-    wrap.addEventListener('click', () => this.onNext(nextTile))
+    wrap.addEventListener('click', () => this.onNext(nextTile, wrap.getBoundingClientRect()))
     this.root.appendChild(wrap)
     this._nextEl = wrap
 
@@ -280,13 +292,22 @@ export class ProjectPage {
     this.buttons.enable()
   }
 
+  // Instant DOM hide with no onClose callback and no content teardown —
+  // used only by the project-to-project "next" swap (see
+  // GalleryApp._handleProjectNext), where the WebGL hero takes over the
+  // screen immediately after and the new project's own open() tears the
+  // old content down once the zoom lands a moment later. Pausing the video
+  // here (rather than waiting for that teardown) keeps it from being heard
+  // once it's no longer visible.
+  hide() {
+    if (this._fullVideoEl) this._fullVideoEl.pause()
+    this.buttons.disable()
+    this.root.classList.remove('is-visible')
+    document.body.classList.remove('project-page-open')
+  }
+
   close() {
-    if (this._fullVideoEl) {
-      this._fullVideoEl.pause()
-      this._fullVideoEl.removeAttribute('src')
-      this._fullVideoEl.load()
-      this._fullVideoEl = null
-    }
+    this._teardownVideo()
     this._clearNextProjectTeaser()
     this.buttons.disable()
     this.root.classList.remove('is-visible')

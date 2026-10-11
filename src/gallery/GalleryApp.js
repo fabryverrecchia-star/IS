@@ -86,7 +86,7 @@ export class GalleryApp {
     this.detailView.onCloseComplete = () => this._handleDetailCloseComplete()
     this.projectPage = new ProjectPage(this, {
       onClose: (tile) => this._handleProjectClose(tile),
-      onNext: (tile) => this._handleProjectNext(tile),
+      onNext: (tile, rect) => this._handleProjectNext(tile, rect),
     })
     this.journal = new JournalView({ items: journalItems, root: document.getElementById('journal') })
     this._bindEvents()
@@ -509,15 +509,34 @@ export class GalleryApp {
   }
 
   // The project page's own "next project" teaser (see
-  // ProjectPage._buildNextProjectTeaser) swaps content in place rather than
-  // closing back to the grid and re-opening — there's no on-screen tile to
-  // zoom from/to here. The WebGL hero mesh stays hidden throughout, but
-  // still needs to be re-pointed at the new tile's texture/target so that a
-  // later Escape/back click zooms out to the right grid tile instead of the
-  // one originally clicked into.
-  _handleProjectNext(tile) {
-    this.detailView.retarget(tile)
-    this.projectPage.open(tile)
+  // ProjectPage._buildNextProjectTeaser) hands back the banner's own
+  // on-screen rect. Reusing the exact click-to-zoom-from-DOM-rect technique
+  // _handleFulltextOpen already uses: park the tile's WebGL group at that
+  // rect, drop DetailView back to idle with no closing animation (there's
+  // nothing to animate closed — see DetailView.reset), then open() it fresh
+  // so it tweens from the banner's rect to the new project's hero layout.
+  // The tile's real grid cell is restored right after open() — it only
+  // needs the rect for the one synchronous moment it reads `start`, and
+  // leaving the tile parked there would corrupt its grid position for next
+  // time it closes back to the grid (see Tile.applyCell). The old DOM page
+  // is hidden and the render loop resumed only once the hero mesh is
+  // already visible and positioned, so there's no frame with neither on
+  // screen (same ordering constraint as _handleProjectClose).
+  _handleProjectNext(tile, rect) {
+    if (this.detailView.state !== 'project') return
+
+    tile.applyCell(
+      { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2, width: rect.width, height: rect.height },
+      this.viewportWidth,
+      this.viewportHeight
+    )
+
+    this.detailView.reset()
+    this.detailView.open(tile)
+    tile.applyCell({ ...this.layout.positions[tile.index] }, this.viewportWidth, this.viewportHeight)
+
+    this.projectPage.hide()
+    this.start()
   }
 
   _handleResize() {
