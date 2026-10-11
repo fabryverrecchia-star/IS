@@ -16,7 +16,7 @@ body {
   padding: 0;
   background: var(--bg);
   color: var(--fg);
-  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-family: 'Space Grotesk', 'Helvetica Neue', Helvetica, Arial, sans-serif;
   /* clip, not hidden — `overflow-x: hidden` forces the UA to compute
      overflow-y as `auto` on the same element (the spec's "no visible +
      non-visible axis mix" fixup), and an ancestor with overflow-y:auto
